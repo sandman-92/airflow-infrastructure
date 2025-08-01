@@ -1,0 +1,107 @@
+# Apache Airflow related files and directories
+# =============================================
+.env
+
+# Logs directory - ignore all log files
+logs/
+*.log
+
+# Data directory - ignore all generated data files
+data/
+
+# Airflow configuration and runtime files
+config/airflow.cfg
+airflow.cfg
+airflow.db
+airflow-webserver.pid
+webserver_config.py
+standalone_admin_password.txt
+
+# Airflow cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+.airflow_db_initialized
+.airflow/
+
+# Airflow scheduler and worker files
+airflow-scheduler.pid
+airflow-worker.pid
+celerybeat-schedule
+celerybeat.pid
+
+# Airflow plugins cache
+plugins/__pycache__/
+plugins/*.pyc
+
+# Database files (if using SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment and configuration files
+.env.local
+.env.development
+.env.test
+.env.production
+airflow_settings.py
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python package files
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker related (optional - uncomment if needed)
+# docker-compose.override.yml
+# .dockerignore
+
+# Airflow specific directories that might be created
+dags/__pycache__/
+dags/*.pyc
+models/__pycache__/
+models/*.pyc
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Airflow metadata database backups
+airflow_backup_*
