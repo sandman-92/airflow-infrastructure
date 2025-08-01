@@ -11,35 +11,15 @@ import sys
 import os
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
+from airflow.operators.python import get_current_context
 from airflow.operators.bash import BashOperator
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Default arguments for the DAG
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2025, 7, 31),
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
 
-# Define the DAG
-dag = DAG(
-    'database_migration_dag',
-    default_args=default_args,
-    description='A DAG for database initialization and migration',
-    schedule=None,  # Manual trigger only
-    catchup=False,
-    tags=['database', 'migration', 'alembic', 'initialization'],
-)
-
-
-def check_database_connection(**context):
+def check_database_connection():
     """Check if database connection is working"""
     try:
         # Add models to Python path
@@ -59,7 +39,7 @@ def check_database_connection(**context):
         raise
 
 
-def initialize_database(**context):
+def initialize_database():
     """Initialize database tables"""
     try:
         # Add models to Python path
@@ -77,7 +57,7 @@ def initialize_database(**context):
         raise
 
 
-def check_migration_status(**context):
+def check_migration_status():
     """Check current migration status"""
     try:
         # Add models to Python path
@@ -112,7 +92,7 @@ def check_migration_status(**context):
         raise
 
 
-def create_sample_data(**context):
+def create_sample_data():
     """Create sample data for testing"""
     try:
         # Add models to Python path
@@ -159,60 +139,69 @@ def create_sample_data(**context):
         raise
 
 
-# Define the tasks
-check_db_task = PythonOperator(
-    task_id='check_database_connection',
-    python_callable=check_database_connection,
-    dag=dag,
-)
+# Default arguments for the DAG
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2025, 7, 31),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
 
-init_db_task = PythonOperator(
-    task_id='initialize_database',
-    python_callable=initialize_database,
-    dag=dag,
-)
+with DAG(
+    'database_migration_dag',
+    default_args=default_args,
+    description='A DAG for database initialization and migration',
+    schedule=None,  # Manual trigger only
+    catchup=False,
+    tags=['database', 'migration', 'alembic', 'initialization'],
+) as dag:
 
-# Initialize Alembic (create alembic_version table and stamp as head)
-init_alembic_task = BashOperator(
-    task_id='initialize_alembic',
-    bash_command="""
-    cd /opt/airflow/models/alembic && \
-    alembic stamp head
-    """,
-    dag=dag,
-)
+    @task()
+    def check_database_connection_task():
+        return check_database_connection()
 
-# Generate initial migration
-generate_migration_task = BashOperator(
-    task_id='generate_initial_migration',
-    bash_command="""
-    cd /opt/airflow/models/alembic && \
-    alembic revision --autogenerate -m "Initial migration"
-    """,
-    dag=dag,
-)
+    @task()
+    def initialize_database_task():
+        return initialize_database()
 
-# Run migrations
-run_migration_task = BashOperator(
-    task_id='run_migrations',
-    bash_command="""
-    cd /opt/airflow/models/alembic && \
-    alembic upgrade head
-    """,
-    dag=dag,
-)
+    @task()
+    def check_migration_status_task():
+        return check_migration_status()
 
-check_migration_task = PythonOperator(
-    task_id='check_migration_status',
-    python_callable=check_migration_status,
-    dag=dag,
-)
-#
-# create_sample_task = PythonOperator(
-#     task_id='create_sample_data',
-#     python_callable=create_sample_data,
-#     dag=dag,
-# )
+    # Initialize Alembic (create alembic_version table and stamp as head)
+    init_alembic_task = BashOperator(
+        task_id='initialize_alembic',
+        bash_command="""
+        cd /opt/airflow/models/alembic && \
+        alembic stamp head
+        """,
+    )
 
-# Set task dependencies
-check_db_task >> init_db_task >> init_alembic_task >> generate_migration_task >> run_migration_task >> check_migration_task
+    # Generate initial migration
+    generate_migration_task = BashOperator(
+        task_id='generate_initial_migration',
+        bash_command="""
+        cd /opt/airflow/models/alembic && \
+        alembic revision --autogenerate -m "Initial migration"
+        """,
+    )
+
+    # Run migrations
+    run_migration_task = BashOperator(
+        task_id='run_migrations',
+        bash_command="""
+        cd /opt/airflow/models/alembic && \
+        alembic upgrade head
+        """,
+    )
+
+    # DAG flow
+    check_db = check_database_connection_task()
+    init_db = initialize_database_task()
+    check_migration = check_migration_status_task()
+
+    # Set task dependencies
+    check_db >> init_db >> init_alembic_task >> generate_migration_task >> run_migration_task >> check_migration

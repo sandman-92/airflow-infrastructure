@@ -18,8 +18,9 @@ import base64
 import hashlib
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.models import Variable
+from airflow.operators.python import get_current_context
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 # Add models directory to path
@@ -306,26 +307,6 @@ def write_json_file(filepath, data):
         logger.error(f"Error writing JSON file {full_path}: {e}")
         raise
 
-# Default arguments for the DAG
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2025, 7, 31),
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
-
-# Define the DAG
-dag = DAG(
-    'web_scraping_dag',
-    default_args=default_args,
-    description='A DAG for web scraping using requests and BeautifulSoup',
-    schedule=timedelta(hours=1),  # Run every hour
-    catchup=False,
-    tags=['web-scraping', 'requests', 'beautifulsoup'],
-)
 
 
 def scrape_with_requests(url):
@@ -431,39 +412,16 @@ def scrape_with_requests(url):
         return None
 
 
-def scrape_url_task(**context):
+def scrape_url_task(url, retry_url_config):
     """
     Airflow task wrapper for the scrape_with_requests function.
     
-    This function can be configured to scrape different URLs by:
-    1. Setting an Airflow Variable named 'scraping_url'
-    2. Passing the URL via DAG configuration
-    3. Using the default example URL
+    Args:
+        url: The URL to scrape
+        retry_url_config: Whether to retry failed URLs
     
-    It also integrates with the URLInjestion database table to track URL processing status.
+    This function integrates with the URLInjestion database table to track URL processing status.
     """
-    
-    # Try to get URL from Airflow Variable first
-    try:
-        url = Variable.get("scraping_url")
-        logger.info(f"Using URL from Airflow Variable: {url}")
-    except:
-        # Try to get URL from DAG configuration
-        dag_run = context.get('dag_run')
-        if dag_run and dag_run.conf and 'url' in dag_run.conf:
-            url = dag_run.conf['url']
-            logger.info(f"Using URL from DAG configuration: {url}")
-        else:
-            # Use default URL for demonstration
-            url = "https://httpbin.org/html"
-            logger.info(f"Using default URL: {url}")
-    
-    # Check for retry_url configuration
-    dag_run = context.get('dag_run')
-    retry_url_config = False
-    if dag_run and dag_run.conf and 'retry_url' in dag_run.conf:
-        retry_url_config = dag_run.conf['retry_url']
-        logger.info(f"retry_url configuration: {retry_url_config}")
     
     # Check if we should proceed with scraping based on URL status
     if not should_proceed_with_scraping(url, retry_url_config):
@@ -504,20 +462,22 @@ def scrape_url_task(**context):
         raise
 
 
-def write_json(**context):
+def write_json(scraped_data, rewrite_file, processing_metadata):
     """
     Process the scraped content and save it as a JSON file.
     
+    Args:
+        scraped_data: The scraped content from the previous task
+        rewrite_file: Whether to rewrite existing files
+        processing_metadata: Metadata about the processing context
+    
     This function:
-    1. Gets scraped data from the previous task
+    1. Processes scraped data from the previous task
     2. Generates a base64 encoded filename from the URL hash
     3. Checks if a JSON file record already exists in the database
     4. Creates/writes the JSON file if conditions are met
     5. Updates the database status accordingly
     """
-    
-    # Get the scraped content from the previous task
-    scraped_data = context['task_instance'].xcom_pull(task_ids='scrape_url')
     
     if not scraped_data:
         logger.error("No scraped content received from previous task")
@@ -537,13 +497,7 @@ def write_json(**context):
     # Generate filename from URL hash
     filename = generate_filename_from_url(url)
     logger.info(f"Generated filename: {filename}")
-    
-    # Check for rewrite_file configuration
-    dag_run = context.get('dag_run')
-    rewrite_file = False
-    if dag_run and dag_run.conf and 'rewrite_file' in dag_run.conf:
-        rewrite_file = dag_run.conf['rewrite_file']
-        logger.info(f"rewrite_file configuration: {rewrite_file}")
+    logger.info(f"rewrite_file configuration: {rewrite_file}")
     
     # Check if JSON file record already exists
     file_info = check_json_file_status(url)
@@ -578,11 +532,7 @@ def write_json(**context):
             "text": scraped_data['text'],
             "content_length": len(scraped_data['text']),
             "scraped_at": datetime.now().isoformat(),
-            "processing_metadata": {
-                "dag_run_id": context.get('dag_run').run_id if context.get('dag_run') else None,
-                "task_instance_id": context.get('task_instance').task_id if context.get('task_instance') else None,
-                "execution_date": context.get('execution_date').isoformat() if context.get('execution_date') else None
-            }
+            "processing_metadata": processing_metadata
         }
         
         # Write the JSON file
@@ -612,19 +562,19 @@ def write_json(**context):
         raise Exception(f"JSON file processing failed: {e}")
 
 
-def prepare_embedding_dag_params(**context):
+def prepare_embedding_dag_params(json_result):
     """
     Prepare parameters to trigger the create_embedding_dag.
     
+    Args:
+        json_result: The result from the write_json task
+    
     This function:
-    1. Gets the result from the write_json task
+    1. Processes the result from the write_json task
     2. Retrieves URL_ID and JSON_FILE_ID from the database
     3. Reads the article text from the JSON file
     4. Returns the configuration for triggering the embedding DAG
     """
-    
-    # Get the result from the previous task
-    json_result = context['task_instance'].xcom_pull(task_ids='process_content')
     
     if not json_result or json_result.get('status') == 'skipped':
         logger.info("JSON processing was skipped, no embedding DAG to trigger")
@@ -691,32 +641,115 @@ def prepare_embedding_dag_params(**context):
 
 
 
-# Define the tasks
-scrape_task = PythonOperator(
-    task_id='scrape_url',
-    python_callable=scrape_url_task,
-    dag=dag,
-)
+# Default arguments for the DAG
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2025, 7, 31),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
 
-write_json_task = PythonOperator(
-    task_id='process_content',
-    python_callable=write_json,
-    dag=dag,
-)
+with DAG(
+    'web_scraping_dag',
+    default_args=default_args,
+    description='A DAG for web scraping using requests and BeautifulSoup',
+    schedule=timedelta(hours=1),  # Run every hour
+    catchup=False,
+    tags=['web-scraping', 'requests', 'beautifulsoup'],
+) as dag:
 
-prepare_embedding_params_task = PythonOperator(
-    task_id='prepare_embedding_params',
-    python_callable=prepare_embedding_dag_params,
-    dag=dag,
-)
+    @task()
+    def scrape_url():
+        # Context should be extracted in the task decorator
+        context = get_current_context()
+        
+        # Try to get URL from Airflow Variable first
+        try:
+            url = Variable.get("scraping_url")
+            logger.info(f"Using URL from Airflow Variable: {url}")
+        except:
+            # Try to get URL from DAG configuration
+            dag_run = context.get('dag_run')
+            if dag_run and dag_run.conf and 'url' in dag_run.conf:
+                url = dag_run.conf['url']
+                logger.info(f"Using URL from DAG configuration: {url}")
+            else:
+                # Use default URL for demonstration
+                url = "https://httpbin.org/html"
+                logger.info(f"Using default URL: {url}")
+        
+        # Check for retry_url configuration
+        dag_run = context.get('dag_run')
+        retry_url_config = False
+        if dag_run and dag_run.conf and 'retry_url' in dag_run.conf:
+            retry_url_config = dag_run.conf['retry_url']
+            logger.info(f"retry_url configuration: {retry_url_config}")
+        
+        return scrape_url_task(url, retry_url_config)
 
-trigger_embedding_dag_task = TriggerDagRunOperator(
-    task_id='trigger_create_embedding_dag',
-    trigger_dag_id='create_embedding',
-    conf="{{ ti.xcom_pull(task_ids='prepare_embedding_params') }}",
-    wait_for_completion=False,
-    dag=dag,
-)
+    @task()
+    def process_content():
+        # Context should be extracted in the task decorator
+        context = get_current_context()
+        
+        # Get the scraped content from the previous task
+        scraped_data = context['task_instance'].xcom_pull(task_ids='scrape_url')
+        
+        # Check for rewrite_file configuration
+        dag_run = context.get('dag_run')
+        rewrite_file = False
+        if dag_run and dag_run.conf and 'rewrite_file' in dag_run.conf:
+            rewrite_file = dag_run.conf['rewrite_file']
+        
+        # Prepare processing metadata
+        processing_metadata = {
+            "dag_run_id": context.get('dag_run').run_id if context.get('dag_run') else None,
+            "task_instance_id": context.get('task_instance').task_id if context.get('task_instance') else None,
+            "execution_date": context.get('execution_date').isoformat() if context.get('execution_date') else None
+        }
+        
+        return write_json(scraped_data, rewrite_file, processing_metadata)
 
-# Set task dependencies
-scrape_task >> write_json_task >> prepare_embedding_params_task >> trigger_embedding_dag_task
+    @task()
+    def prepare_embedding_params():
+        # Context should be extracted in the task decorator
+        context = get_current_context()
+        
+        # Get the result from the previous task
+        json_result = context['task_instance'].xcom_pull(task_ids='process_content')
+        
+        return prepare_embedding_dag_params(json_result)
+
+    @task()
+    def trigger_embedding_dag():
+        # Context should be extracted in the task decorator
+        context = get_current_context()
+        
+        # Get the embedding parameters from the previous task
+        embedding_params = context['task_instance'].xcom_pull(task_ids='prepare_embedding_params')
+        
+        # Import TriggerDagRunOperator here to avoid circular imports
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        
+        # Create and execute the trigger operator
+        trigger_op = TriggerDagRunOperator(
+            task_id='trigger_create_embedding_dag_internal',
+            trigger_dag_id='create_embedding',
+            conf=embedding_params,  # Pass the dictionary directly
+            wait_for_completion=False,
+        )
+        
+        # Execute the operator
+        return trigger_op.execute(context)
+
+    # DAG flow
+    scrape_task = scrape_url()
+    write_task = process_content()
+    prepare_task = prepare_embedding_params()
+    trigger_task = trigger_embedding_dag()
+
+    # Set task dependencies
+    scrape_task >> write_task >> prepare_task >> trigger_task
