@@ -2,6 +2,58 @@
 
 This repository contains a Docker Compose setup for deploying Apache Airflow with Auth0 authentication, alongside Redis, PostgreSQL, and Qdrant vector database services.
 
+## Quick Start
+
+### Clone Project
+
+clone project and change directory to repo
+```bash
+git clone && cd airflow-infrastructure
+```
+fill in environment file
+```dotenv
+AIRFLOW_UID=YOUR UID
+# Apache Airflow Configuration
+AIRFLOW_IMAGE_NAME=apache/airflow:3.0.3
+#AIRFLOW_UID=50000
+AIRFLOW_PROJ_DIR=.
+
+# Default Airflow Admin User (used for initial setup)
+_AIRFLOW_WWW_USER_USERNAME=airflow
+_AIRFLOW_WWW_USER_PASSWORD=airflow
+
+# Auth0 Configuration
+# Replace these values with your Auth0 application settings
+AUTH0_DOMAIN=https://your-domain.auth0.com
+AUTH0_CLIENT_ID=your-auth0-client-id
+AUTH0_CLIENT_SECRET=your-auth0-client-secret
+
+# Additional Python Requirements (optional)
+# Add any additional Python packages you need
+_PIP_ADDITIONAL_REQUIREMENTS=authlib flask-oidc requests beautifulsoup4 alembic sqlalchemy psycopg2-binary qdrant-client numpy pandas openai
+
+AIRFLOW__CORE__LOAD_EXAMPLES=False
+
+OPENAI_API_KEY=
+
+```
+run 
+```bash
+docker compose up airflow-init
+docker compose up -d --build --force-recreate
+```
+
+initialize our project database
+1. go to https://localhost:8080
+2. navigate to dags
+3. trigger the database_migration_dag (this initializes our database with our model.py file)
+
+docker exec into the api server and run the command 
+```bash
+airflow variables load dag/variables.json
+```
+this loads our workflow variables from the json file 
+
 ## Services Included
 
 - **Apache Airflow 3.0.3**: Complete Airflow deployment with CeleryExecutor
@@ -22,15 +74,6 @@ This repository contains a Docker Compose setup for deploying Apache Airflow wit
 - Auth0 account and application configured
 - At least 4GB RAM and 2 CPU cores recommended
 - 10GB+ free disk space
-
-## Quick Start
-
-### 1. Clone and Setup
-
-```bash
-git clone <repository-url>
-cd airflow-infrastructure
-```
 
 ### 2. Configure Environment Variables
 

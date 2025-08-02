@@ -21,39 +21,32 @@ DATA_DIR = "/opt/airflow/data/url_batches"
 with DAG(
     dag_id='gdelt_url_injestion_dag',
     default_args=default_args,
-    description='Fetch URLs from GDelt and trigger a scraping DAG for each',
     start_date=datetime.utcnow() - timedelta(days=1),
     schedule='*/10 * * * *',
     catchup=False,
-    tags=['gdelt', 'url-injestion'],
+    tags=['airflow-3.0', 'gdelt', 'fanout'],
 ) as dag:
 
     @task()
-    def validate_configuration_task():
+    def validate_config():
         return validate_gdelt_configuration()
 
     @task()
-    def fetch_and_write_urls(config: dict) -> list[dict]:
+    def fetch_urls(config: dict) -> list[dict]:
         urls = fetch_gdelt_urls(
             keywords=config["keywords"],
             api_endpoint=config["api_endpoint"],
             time_window_hours=config["time_window_hours"],
             max_urls_per_run=config["max_urls_per_run"]
         )
-        os.makedirs(DATA_DIR, exist_ok=True)
-        file_path = os.path.join(
-            DATA_DIR, f"gdelt_urls_{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}.json"
-        )
-        with open(file_path, "w") as f:
-            json.dump(urls, f, indent=4)
-        return urls
+        # Return list of {"url": ...} dicts
+        return [{"url": u} for u in urls]
 
-
-    # Trigger web_scraping_dag for each config
+    # Fan-out trigger for each URL
     trigger_scrapers = TriggerDagRunOperator.partial(
-        task_id="trigger_scraping_dags",
+        task_id="trigger_web_scrapers",
         trigger_dag_id="web_scraping_dag",
         wait_for_completion=False,
         reset_dag_run=False,
-    ).expand(conf=)
+    ).expand(conf=fetch_urls(validate_config()))
 

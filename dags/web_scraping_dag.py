@@ -648,7 +648,7 @@ default_args = {
     'start_date': datetime(2025, 7, 31),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=5),
 }
 
@@ -656,7 +656,6 @@ with DAG(
     'web_scraping_dag',
     default_args=default_args,
     description='A DAG for web scraping using requests and BeautifulSoup',
-    schedule=timedelta(hours=1),  # Run every hour
     catchup=False,
     tags=['web-scraping', 'requests', 'beautifulsoup'],
 ) as dag:
@@ -665,29 +664,21 @@ with DAG(
     def scrape_url():
         context = get_current_context()
         dag_run = context.get("dag_run")
+
         if not dag_run or not dag_run.conf:
             raise ValueError("No configuration provided in dag_run.conf")
 
         conf = dag_run.conf
-        file_path = conf.get("file")
-        index = conf.get("index")
+        url = conf.get("url")['url']
+        retry_url_config = conf.get("retry_url", False)
 
-        logger.info(f"[scrape_url] Params received: file_path={file_path}, index={index}")
-
-        if not file_path or index is None:
-            raise ValueError("Both 'file' and 'index' must be in dag_run.conf")
-
-        try:
-            with open(file_path, "r") as f:
-                url_list = json.load(f)
-            url = url_list[index]['url']
-        except Exception as e:
-            raise ValueError(f"Failed to read URL from file {file_path} at index {index}: {e}")
+        if not url:
+            raise ValueError("Missing 'url' in dag_run.conf")
 
         logger.info(f"[scrape_url] Extracted URL: {url}")
-        retry_url_config = conf.get("retry_url", False)
         logger.info(f"[scrape_url] Retry flag: {retry_url_config}")
         return scrape_url_task(url, retry_url_config)
+
 
     @task()
     def process_content(scraped_data: dict):
@@ -714,6 +705,10 @@ with DAG(
     def prepare_embedding_params(json_result: dict):
         logger.info(f"[prepare_embedding_params] Input JSON result keys: {list(json_result.keys())}")
         return prepare_embedding_dag_params(json_result)
+
+    def should_trigger_embedding(**context):
+        ti = context['ti']
+        logger.info(f"[should_trigger_embedding] Triggering with context: {context}")
 
     @task()
     def trigger_embedding_dag(embedding_params: dict):

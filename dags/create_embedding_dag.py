@@ -1,19 +1,3 @@
-"""
-DAG for creating text embeddings and storing them in Qdrant vector database.
-
-This DAG is designed to be triggered with variables from the web scraping DAG
-but can also be run independently for testing purposes.
-
-Required Variables:
-- QdrantCollection: The Qdrant collection name (default: FullTextEmbedding)
-- URL_ID: The URL ID from the URLInjestion table
-- JSON_FILE_ID: The JSON file ID from the JsonFiles table
-- retry_embedding: Boolean to retry if embedding already exists (default: False)
-- text: The text content to embed
-- client: The embedding client/service to use
-- model: The embedding model to use
-"""
-
 from datetime import datetime, timedelta
 import logging
 import json
@@ -24,10 +8,9 @@ import uuid
 import random
 
 from airflow import DAG
+from airflow.operators.python import PythonOperator, get_current_context
 from airflow.decorators import task
 from airflow.models import Variable
-from airflow.operators.python import get_current_context
-from openai import OpenAI
 
 # Import embedding functions from functions module
 from functions.embedding_functions import (
@@ -40,15 +23,13 @@ from functions.embedding_functions import (
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
-# Default DAG arguments
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2025, 8, 1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=5),
 }
 
@@ -63,57 +44,52 @@ with DAG(
 
     @task()
     def check_embedding_exists_task():
-        # Context should be extracted in the task decorator
         context = get_current_context()
         dag_run = context['dag_run']
         conf = dag_run.conf or {}
-        
+
+        logger.info(f"running embedding on {dag_run.conf}")
         url_id = conf.get('URL_ID')
         json_file_id = conf.get('JSON_FILE_ID')
-        
+
         return check_embedding_exists(url_id, json_file_id)
 
-    @task()
-    def generate_text_embedding_task():
-        # Context should be extracted in the task decorator
-        context = get_current_context()
+    def generate_text_embedding_callable(**context):
         ti = context['ti']
         dag_run = context['dag_run']
         conf = dag_run.conf or {}
-        
-        # Get result from previous task
+
         check_result = ti.xcom_pull(task_ids='check_embedding_exists_task')
-        
-        # Get configuration parameters
         text = conf.get('text')
         model = conf.get('model', "text-embedding-3-small")
-        
+
         return generate_text_embedding(check_result, text, model)
+
+    generate_task = PythonOperator(
+        task_id='generate_text_embedding_task',
+        python_callable=generate_text_embedding_callable,
+        pool_slots=1,
+        pool='embedding',
+    )
 
     @task()
     def store_embedding_in_qdrant_task():
-        # Context should be extracted in the task decorator
         context = get_current_context()
         ti = context['ti']
         dag_run = context['dag_run']
         conf = dag_run.conf or {}
-        
-        # Get configuration parameters
+
         url_id = conf.get('URL_ID')
         json_file_id = conf.get('JSON_FILE_ID')
         qdrant_collection = conf.get('QdrantCollection', 'FullTextEmbedding')
-        
-        # Get embedding from previous task
-        embedding_result = ti.xcom_pull(task_ids='generate_text_embedding_task')
 
+        embedding_result = ti.xcom_pull(task_ids='generate_text_embedding_task')
         logger.info(f"Embedding result: {embedding_result}")
-        
+
         return store_embedding_in_qdrant(url_id, json_file_id, qdrant_collection, embedding_result)
 
     # DAG flow
     check_task = check_embedding_exists_task()
-    generate_task = generate_text_embedding_task()
     store_task = store_embedding_in_qdrant_task()
 
-    # Set dependencies
     check_task >> generate_task >> store_task
