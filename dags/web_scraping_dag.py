@@ -672,12 +672,11 @@ with DAG(
         file_path = conf.get("file")
         index = conf.get("index")
 
-        logger.info(f"running dag for file_path: {file_path}, index: {index}")
+        logger.info(f"[scrape_url] Params received: file_path={file_path}, index={index}")
 
         if not file_path or index is None:
             raise ValueError("Both 'file' and 'index' must be in dag_run.conf")
 
-        # Load the file and extract the URL
         try:
             with open(file_path, "r") as f:
                 url_list = json.load(f)
@@ -685,70 +684,57 @@ with DAG(
         except Exception as e:
             raise ValueError(f"Failed to read URL from file {file_path} at index {index}: {e}")
 
-        logger.info(f"Loaded URL from file: {url}")
+        logger.info(f"[scrape_url] Extracted URL: {url}")
         retry_url_config = conf.get("retry_url", False)
+        logger.info(f"[scrape_url] Retry flag: {retry_url_config}")
         return scrape_url_task(url, retry_url_config)
 
     @task()
-    def process_content():
-        # Context should be extracted in the task decorator
+    def process_content(scraped_data: dict):
+        logger.info(f"[process_content] Received scraped_data keys: {list(scraped_data.keys())}")
         context = get_current_context()
-        
-        # Get the scraped content from the previous task
-        scraped_data = context['task_instance'].xcom_pull(task_ids='scrape_url')
-        
-        # Check for rewrite_file configuration
+
         dag_run = context.get('dag_run')
         rewrite_file = False
         if dag_run and dag_run.conf and 'rewrite_file' in dag_run.conf:
             rewrite_file = dag_run.conf['rewrite_file']
-        
-        # Prepare processing metadata
+
+        logger.info(f"[process_content] rewrite_file: {rewrite_file}")
+
         processing_metadata = {
-            "dag_run_id": context.get('dag_run').run_id if context.get('dag_run') else None,
+            "dag_run_id": dag_run.run_id if dag_run else None,
             "task_instance_id": context.get('task_instance').task_id if context.get('task_instance') else None,
             "execution_date": context.get('execution_date').isoformat() if context.get('execution_date') else None
         }
-        
+
+        logger.info(f"[process_content] metadata: {processing_metadata}")
         return write_json(scraped_data, rewrite_file, processing_metadata)
 
     @task()
-    def prepare_embedding_params():
-        # Context should be extracted in the task decorator
-        context = get_current_context()
-        
-        # Get the result from the previous task
-        json_result = context['task_instance'].xcom_pull(task_ids='process_content')
-        
+    def prepare_embedding_params(json_result: dict):
+        logger.info(f"[prepare_embedding_params] Input JSON result keys: {list(json_result.keys())}")
         return prepare_embedding_dag_params(json_result)
 
     @task()
-    def trigger_embedding_dag():
-        # Context should be extracted in the task decorator
-        context = get_current_context()
-        
-        # Get the embedding parameters from the previous task
-        embedding_params = context['task_instance'].xcom_pull(task_ids='prepare_embedding_params')
-        
-        # Import TriggerDagRunOperator here to avoid circular imports
+    def trigger_embedding_dag(embedding_params: dict):
+        logger.info(f"[trigger_embedding_dag] Triggering with config: {embedding_params}")
+
         from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-        
-        # Create and execute the trigger operator
+
         trigger_op = TriggerDagRunOperator(
             task_id='trigger_create_embedding_dag_internal',
             trigger_dag_id='create_embedding',
-            conf=embedding_params,  # Pass the dictionary directly
+            conf=embedding_params,
             wait_for_completion=False,
         )
-        
-        # Execute the operator
-        return trigger_op.execute(context)
 
-    # DAG flow
+        return trigger_op.execute(get_current_context())
+
+    # DAG flow with explicit data passing
     scrape_task = scrape_url()
-    write_task = process_content()
-    prepare_task = prepare_embedding_params()
-    trigger_task = trigger_embedding_dag()
+    write_task = process_content(scrape_task)
+    prepare_task = prepare_embedding_params(write_task)
+    trigger_task = trigger_embedding_dag(prepare_task)
 
     # Set task dependencies
     scrape_task >> write_task >> prepare_task >> trigger_task

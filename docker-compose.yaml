@@ -396,3 +396,4 @@ volumes:
   postgres-db-volume:
   postgres-app-db-volume:
   qdrant-storage:
+
