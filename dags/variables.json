@@ -1,0 +1,6 @@
+{
+  "gdelt_keywords": ["companies", "business", "linkedin"],
+  "gdelt_api_endpoint": "https://api.gdeltproject.org/api/v2/doc/doc",
+  "gdelt_max_urls_per_run": 250,
+  "gdelt_time_window_hours": 24
+}
