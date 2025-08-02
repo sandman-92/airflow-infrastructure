@@ -4,13 +4,23 @@ This document provides comprehensive design definitions for all DAGs in the Airf
 
 ## Table of Contents
 
-1. [Web Scraping DAG](#web-scraping-dag)
-2. [Create Embedding DAG](#create-embedding-dag)
-3. [Database Migration DAG](#database-migration-dag)
-4. [Example DAG](#example-dag)
-5. [Example Called DAG](#example-called-dag)
+1. [Development Notes / Design Decisions](#development-notes--design-decisions)
+2. [Web Scraping DAG](#web-scraping-dag)
+3. [Create Embedding DAG](#create-embedding-dag)
+4. [Database Migration DAG](#database-migration-dag)
+5. [Example DAG](#example-dag)
+6. [Example Called DAG](#example-called-dag)
 
 ---
+
+
+
+## Development Notes / Design Decisions
+
+1. I have configured XCOM to use a shared file system rather than the default database. this allows us to pass more data between tasks
+2. For development, I am running two postgresql servers, as my model migration scripts were intefereing with the default apache airflow tables
+
+
 
 ## Web Scraping DAG
 
@@ -281,10 +291,4 @@ validate_configuration_task >> fetch_gdelt_data_task >>  inject_urls_task
 
 
 ---
-
-
-## Development Notes
-
-1. I have configured XCOM to use a shared file system rather than the default database. this allows us to pass more data between tasks
-2. For development, I am running two postgresql servers, as my model migration scripts were intefereing with the default apache airflow tables
 
