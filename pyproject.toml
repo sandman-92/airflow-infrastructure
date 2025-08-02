@@ -1,30 +1,31 @@
-[project]
+[tool.poetry]
 name = "dag-development-venv"
 version = "0.1.0"
 description = "virtual environment for developing dags"
-authors = [
-    {name = "sandman-92",email = "sandy.wilson433@gmail.com"}
-]
+authors = ["sandman-92 <sandy.wilson433@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
-dependencies = [
-    "apache-airflow (>=3.0.3,<4.0.0)",
-    "pytest (>=8.4.1,<9.0.0)",
-    "authlib (>=1.6.1,<2.0.0)",
-    "flask-oidc (>=2.4.0,<3.0.0)",
-    "requests (>=2.32.4,<3.0.0)",
-    "beautifulsoup4 (>=4.13.4,<5.0.0)",
-    "alembic (>=1.16.4,<2.0.0)",
-    "sqlalchemy (>=1.4.54,<2.0.0)",
-    "psycopg2-binary (>=2.9.10,<3.0.0)",
-    "qdrant-client (>=1.15.1,<2.0.0)",
-    "numpy (>=2.3.2,<3.0.0)",
-    "pandas (>=2.3.1,<3.0.0)",
-    "openai (>=1.98.0,<2.0.0)",
-    "isort (>=6.0.1,<7.0.0)",
-    "black (>=25.1.0,<26.0.0)",
-    "flake8 (>=7.3.0,<8.0.0)"
-]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+apache-airflow = ">=3.0.3,<4.0.0"
+pytest = ">=8.4.1,<9.0.0"
+pytest-mock = ">=3.14.0,<4.0.0"
+pytest-asyncio = ">=0.25.0,<1.0.0"
+authlib = ">=1.6.1,<2.0.0"
+flask-oidc = ">=2.4.0,<3.0.0"
+requests = ">=2.32.4,<3.0.0"
+beautifulsoup4 = ">=4.13.4,<5.0.0"
+alembic = ">=1.16.4,<2.0.0"
+sqlalchemy = ">=1.4.54,<2.0.0"
+psycopg2-binary = ">=2.9.10,<3.0.0"
+qdrant-client = ">=1.15.1,<2.0.0"
+numpy = ">=2.3.2,<3.0.0"
+pandas = ">=2.3.1,<3.0.0"
+openai = ">=1.98.0,<2.0.0"
+isort = ">=6.0.1,<7.0.0"
+black = ">=25.1.0,<26.0.0"
+flake8 = ">=7.3.0,<8.0.0"
 
 
 [build-system]

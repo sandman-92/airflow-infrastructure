@@ -665,21 +665,13 @@ with DAG(
     def scrape_url():
         # Context should be extracted in the task decorator
         context = get_current_context()
-        
-        # Try to get URL from Airflow Variable first
-        try:
-            url = Variable.get("scraping_url")
-            logger.info(f"Using URL from Airflow Variable: {url}")
-        except:
-            # Try to get URL from DAG configuration
-            dag_run = context.get('dag_run')
-            if dag_run and dag_run.conf and 'url' in dag_run.conf:
-                url = dag_run.conf['url']
-                logger.info(f"Using URL from DAG configuration: {url}")
-            else:
-                # Use default URL for demonstration
-                url = "https://httpbin.org/html"
-                logger.info(f"Using default URL: {url}")
+
+        dag_run = context.get('dag_run')
+        if not dag_run or not dag_run.conf or 'url' not in dag_run.conf:
+            raise ValueError("No URL provided in dag_run.conf")
+
+        url = dag_run.conf['url']
+        logger.info(f"Received URL from conf: {url}")
         
         # Check for retry_url configuration
         dag_run = context.get('dag_run')
