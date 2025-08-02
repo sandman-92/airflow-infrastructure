@@ -282,3 +282,9 @@ validate_configuration_task >> fetch_gdelt_data_task >>  inject_urls_task
 
 ---
 
+
+## Development Notes
+
+1. I have configured XCOM to use a shared file system rather than the default database. this allows us to pass more data between tasks
+2. For development, I am running two postgresql servers, as my model migration scripts were intefereing with the default apache airflow tables
+
