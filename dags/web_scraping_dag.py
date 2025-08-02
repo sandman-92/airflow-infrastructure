@@ -422,7 +422,7 @@ def scrape_url_task(url, retry_url_config):
     
     This function integrates with the URLInjestion database table to track URL processing status.
     """
-    
+
     # Check if we should proceed with scraping based on URL status
     if not should_proceed_with_scraping(url, retry_url_config):
         logger.info(f"Skipping scraping for URL: {url} based on database status")
@@ -663,23 +663,30 @@ with DAG(
 
     @task()
     def scrape_url():
-        # Context should be extracted in the task decorator
         context = get_current_context()
+        dag_run = context.get("dag_run")
+        if not dag_run or not dag_run.conf:
+            raise ValueError("No configuration provided in dag_run.conf")
 
-        dag_run = context.get('dag_run')
-        if not dag_run or not dag_run.conf or 'url' not in dag_run.conf:
-            raise ValueError("No URL provided in dag_run.conf")
+        conf = dag_run.conf
+        file_path = conf.get("file")
+        index = conf.get("index")
 
-        url = dag_run.conf['url']
-        logger.info(f"Received URL from conf: {url}")
-        
-        # Check for retry_url configuration
-        dag_run = context.get('dag_run')
-        retry_url_config = False
-        if dag_run and dag_run.conf and 'retry_url' in dag_run.conf:
-            retry_url_config = dag_run.conf['retry_url']
-            logger.info(f"retry_url configuration: {retry_url_config}")
-        
+        logger.info(f"running dag for file_path: {file_path}, index: {index}")
+
+        if not file_path or index is None:
+            raise ValueError("Both 'file' and 'index' must be in dag_run.conf")
+
+        # Load the file and extract the URL
+        try:
+            with open(file_path, "r") as f:
+                url_list = json.load(f)
+            url = url_list[index]['url']
+        except Exception as e:
+            raise ValueError(f"Failed to read URL from file {file_path} at index {index}: {e}")
+
+        logger.info(f"Loaded URL from file: {url}")
+        retry_url_config = conf.get("retry_url", False)
         return scrape_url_task(url, retry_url_config)
 
     @task()
