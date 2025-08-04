@@ -14,15 +14,17 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from alembic.config import Config
+from alembic import command
 
 # Add models to path for imports
 import sys
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-models_path = os.path.join(project_root, 'models')
-sys.path.insert(0, models_path)
+root_dir = os.path.join(os.path.dirname(__file__), "..")
+sys.path.append(root_dir)
 
-from base import Base
-from model import URLInjestion, JsonFiles, FullArticleTextEmbedding
+
+from models.base import Base
+from models.model import TaskStatus, URLInjestion, JsonFiles, FullArticleTextEmbedding, URLKeyWordTable, GdeltKeywords
 
 
 @pytest.fixture(scope="function")
@@ -57,12 +59,17 @@ def test_db():
     for module_name in modules_to_clear:
         if module_name in sys.modules:
             del sys.modules[module_name]
-    
+
+
     # Now create engine and tables
-    engine = create_engine(sqlite_url, echo=False)
+    engine = create_engine(sqlite_url, echo=True)
     
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    alembic_config = Config(
+        os.path.join(root_dir, "models/alembic/alembic.ini")
+    )
+    alembic_config.set_main_option("sqlalchemy.url", sqlite_url)
+    alembic_config.set_main_option("script_location", os.path.join(root_dir, "models/alembic/"))
+    command.upgrade(alembic_config, "head")
     
     # Create session factory
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
