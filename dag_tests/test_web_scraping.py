@@ -41,108 +41,108 @@ def test_db_tables(test_db):
         assert "url_injestion" in tables
         assert "json_files" in tables
         assert "task_status" in tables
-        assert "url_keyword_table"
-#
-#
-# def test_db_checker_url(test_db):
-#     """
-#     checks to see if a url does not exist it changes the Trigger Conf to true, if the url does exist the trigger is false
-#     Args:
-#         test_db:
-#
-#     Returns:
-#
-#     """
-#     #Create a new test_db and SessionLocal
-#     engine, SessionLocal, db_path = test_db
-#
-#     #check that if a url does not exist, it adds it and sets Trigger to true
-#     conf = {}
-#     conf['TriggerScraper'] = True
-#     conf['url'] = "https://fakeurl.com"
-#
-#     with SessionLocal() as session:
-#
-#         conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
-#     assert conf['TriggerScraper'] is True
-#
-#     #Try add the same URL to the db should return false
-#     with SessionLocal() as session:
-#
-#         conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
-#     assert conf['TriggerScraper'] is False
-#
-#
-# def test_db_checker_json(test_db):
-#     """
-#     checks to see if a json file does not exist it changes the Trigger Conf to true, if the json does exist the trigger is false
-#     Args:
-#         test_db:
-#
-#     Returns:
-#
-#     """
-#     #Create a new test_db and SessionLocal
-#     engine, SessionLocal, db_path = test_db
-#
-#     #check that if a url does not exist, it adds it and sets Trigger to true
-#     conf = {}
-#     conf['TriggerJson'] = True
-#     conf['url'] = "https://fakeurl.com"
-#     conf['filepath'] = "fake_file.json"
-#
-#     #add the url to the url table
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
-#
-#
-#     # Check to see if json will be triggered
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="writejson", session = session)
-#     assert conf['TriggerJson'] is True
-#
-#     #Try add the same json file
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="writejson", session = session)
-#     assert conf['TriggerJson'] is False
-#
+        assert "url_keyword_table" in tables
 
-# def test_db_checker_embedding(test_db):
-#     """
-#     checks to see if a json file does not exist it changes the Trigger Conf to true, if the json does exist the trigger is false
-#     Args:
-#         test_db:
-#
-#     Returns:
-#
-#     """
-#     #Create a new test_db and SessionLocal
-#     engine, SessionLocal, db_path = test_db
-#
-#     #check that if a url does not exist, it adds it and sets Trigger to true
-#     conf = {}
-#     conf['TriggerEmbedding'] = True
-#     conf['url'] = "https://fakeurl.com"
-#     conf['filepath'] = "fake_file.json"
-#
-#     #add the url to the url table
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
-#
-#     #add the json file to the json file table
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="writejson", session=session)
-#
-#
-#     # Check to see if embedding will be triggered
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="embedding", session = session)
-#     assert conf['TriggerEmbedding'] is True
-#
-#     #Try add the same json file
-#     with SessionLocal() as session:
-#         conf = check_and_update_database(config=conf, task_to_run="embedding", session = session)
-#     assert conf['TriggerEmbedding'] is False
+
+def test_db_checker_url(test_db):
+    """
+    checks to see if a url does not exist it changes the Trigger Conf to true, if the url does exist the trigger is false
+    Args:
+        test_db:
+
+    Returns:
+
+    """
+    #Create a new test_db and SessionLocal
+    engine, SessionLocal, db_path = test_db
+
+    #check that if a url does not exist, it adds it and sets Trigger to true
+    conf = {}
+    conf['TriggerScraper'] = True
+    conf['url'] = "https://fakeurl.com"
+
+    with SessionLocal() as session:
+
+        conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
+    assert conf['TriggerScraper'] is True
+
+    #Try add the same URL to the db should return false
+    with SessionLocal() as session:
+
+        conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
+    assert conf['TriggerScraper'] is False
+
+
+def test_db_checker_json(test_db):
+    """
+    checks to see if a json file does not exist it changes the Trigger Conf to true, if the json does exist the trigger is false
+    Args:
+        test_db:
+
+    Returns:
+
+    """
+    #Create a new test_db and SessionLocal
+    engine, SessionLocal, db_path = test_db
+
+    #check that if a url does not exist, it adds it and sets Trigger to true
+    conf = {}
+    conf['TriggerJson'] = True
+    conf['url'] = "https://fakeurl.com"
+    conf['filepath'] = "fake_file.json"
+
+    #add the url to the url table
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
+
+
+    # Check to see if json will be triggered
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="writejson", session = session)
+    assert conf['TriggerJson'] is True
+
+    #Try add the same json file
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="writejson", session = session)
+    assert conf['TriggerJson'] is False
+
+
+def test_db_checker_embedding(test_db):
+    """
+    checks to see if a json file does not exist it changes the Trigger Conf to true, if the json does exist the trigger is false
+    Args:
+        test_db:
+
+    Returns:
+
+    """
+    #Create a new test_db and SessionLocal
+    engine, SessionLocal, db_path = test_db
+
+    #check that if a url does not exist, it adds it and sets Trigger to true
+    conf = {}
+    conf['TriggerEmbedding'] = True
+    conf['url'] = "https://fakeurl.com"
+    conf['filepath'] = "fake_file.json"
+
+    #add the url to the url table
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="scraping", session = session)
+
+    #add the json file to the json file table
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="writejson", session=session)
+
+
+    # Check to see if embedding will be triggered
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="embedding", session = session)
+    assert conf['TriggerEmbedding'] is True
+
+    #Try add the same json file
+    with SessionLocal() as session:
+        conf = check_and_update_database(config=conf, task_to_run="embedding", session = session)
+    assert conf['TriggerEmbedding'] is False
 
 
 

@@ -23,7 +23,7 @@ root_dir = os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(root_dir)
 
 
-from models.base import Base
+from models.base import Base, get_current_engine
 from models.model import (
     TaskStatus,
     URLInjestion,
@@ -52,14 +52,17 @@ def test_db():
     sqlite_url = f"sqlite:///{db_path}"
     os.environ['APP_DATABASE_URL'] = sqlite_url
 
-    # Clear model cache to avoid old connections
-    modules_to_clear = [name for name in sys.modules if 'base' in name or 'model' in name]
-    for name in modules_to_clear:
-        sys.modules.pop(name, None)
-
-    # Create engine and tables
-    engine = create_engine(sqlite_url, echo=True)
-    Base.metadata.create_all(engine)  # 🚨 Skips Alembic — use models directly
+    # Create engine using the current environment variable
+    engine = get_current_engine()
+    
+    # Import models to ensure they're registered with Base
+    from models import model
+    
+    # Get the Base instance that the models are actually using
+    models_base = model.Base
+    
+    # Create all tables using the models' Base.metadata.create_all with the test engine
+    models_base.metadata.create_all(engine)
 
     # Session factory
     SessionLocal = sessionmaker(bind=engine)
@@ -71,10 +74,6 @@ def test_db():
         os.environ['APP_DATABASE_URL'] = original_db_url
     elif 'APP_DATABASE_URL' in os.environ:
         del os.environ['APP_DATABASE_URL']
-
-    # Clear cached modules again
-    for name in modules_to_clear:
-        sys.modules.pop(name, None)
 
     # Remove temp DB file
     try:

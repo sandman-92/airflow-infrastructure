@@ -18,6 +18,7 @@ from models.base import SessionLocal
 from models.model import URLInjestion, TaskStatus, GdeltKeywords, URLKeyWordTable, JsonFiles, \
     FullArticleTextEmbedding
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 logger = logging.getLogger(__name__)
 # Default arguments for the DAG
 default_args = {
@@ -31,34 +32,29 @@ default_args = {
 }
 
 with DAG(
-    'web_scraping_dag',
+    "web_scraping_dag",
     default_args=default_args,
-    description='a workflow to scrape URLS and produce embeddings',
-    catchup=False,
-    tags=['web-scraping', 'embeddings'],
+    description="a workflow to scrape URLS and produce embeddings",
+    tags=["web-scraping", "embeddings"],
 ) as dag:
 
     @task()
     def validate_inputs():
-        """
-
-        :return:
-        """
         context = get_current_context()
-        dag_run = context['dag_run']
+        dag_run = context["dag_run"]
         conf = dag_run.conf or {}
 
-        conf['TriggerScraper'] = True
-        conf['OverrideTriggerScraper'] = Variable.get("scrape_url_override", False)
+        conf["TriggerScraper"] = True
+        conf["OverrideTriggerScraper"] = Variable.get("scrape_url_override", False)
 
-        conf['TriggerURLMetaData'] = True
-        conf['OverrideTriggerURLMetaData'] = Variable.get("url_meta_data_override", False)
+        conf["TriggerURLMetaData"] = True
+        conf["OverrideTriggerURLMetaData"] = Variable.get("url_meta_data_override", False)
 
-        conf['TriggerJson'] = True
-        conf['OverrideTriggerJson'] = Variable.get("json_write_override", False)
+        conf["TriggerJson"] = True
+        conf["OverrideTriggerJson"] = Variable.get("json_write_override", False)
 
-        conf['TriggerEmbedding'] = True
-        conf['OverrideTriggerEmbedding'] = Variable.get("trigger_embeddings_override", False)
+        conf["TriggerEmbedding"] = True
+        conf["OverrideTriggerEmbedding"] = Variable.get("trigger_embeddings_override", False)
 
         logger.info("web scraping dag called with conf")
         logger.info("conf:\n%s", pprint.pformat(conf, indent=2))
@@ -67,57 +63,24 @@ with DAG(
 
     @task()
     def check_to_run_scraping(config):
-        """
-        Task will check the URLInjestion table to see if the url exists and update the db.
-        if URL exists will set TriggerScraper = True
-        updates the URLKeyWordTable
-        :param config:
-        :return:
-        """
-        return_conf = check_and_update_database(config, task_to_run='scraping')
-        return return_conf
+        return check_and_update_database(config, task_to_run="scraping")
 
     @task()
     def scrape_url(config):
-        """
-        if check_to_run_scraping is True or OverrideTriggerScraper is true
-        :param configs:
-        :return:
-        """
+        if config["TriggerScraper"] or config["OverrideTriggerScraper"]:
+            try:
+                page, status = scrape_with_requests(config["url"])
+                logger.info(f"Scraped page title: {page.get('title')}")
+            except Exception as e:
+                logger.warning(f"Scraping failed: {e}")
+                status = "Failed"
 
-        try:
-            url = config['url']
-            page = scrape_with_requests(url)
-        except Exception:
-            config['TriggerURLMetaData'] = False
-            config['TriggerJson'] = False
-            config['TriggerEmbedding'] = False
-            page = {}
-        return {'task_result': page, 'config':config}
+            if status == "Failed":
 
-    @task()
-    def check_to_update_metadata(config):
-        """
-        Task will check the  table to see if the url exists and update the db.
-        if URL exists will set TriggerScraper = True
-        :param config:
-        :return:
-        """
-        return_conf = check_and_update_database(config, task_to_run='metadata')
-        return return_conf
-
-    @task()
-    def update_metadata(config):
-        """
-
-        :param config:
-        :return:
-        """
-        try:
-            update_metadata(config)
-        except Exception:
-            pass
-
+                config['TriggerJson'] = False
+                config['TriggerEmbedding'] = False
+                raise UserWarning('Failed, dont run downstream tasks')
+        return config
 
     @task()
     def check_to_write_json(config):
@@ -125,8 +88,7 @@ with DAG(
 
         :return:
         """
-        return_conf = check_and_update_database(config, task_to_run='writejson')
-        return return_conf
+        return check_and_update_database(config, task_to_run='writejson')
 
     @task()
     def write_json(config):
@@ -134,27 +96,65 @@ with DAG(
 
         :return:
         """
-        try:
-            write_json()
-        except Exception:
-            config['TriggerEmbedding'] = False
+        logger.info("WRITE JSON IS RUNNING")
+        if config["TriggerJson"] or config["OverrideTriggerJson"]:
+            logger.info("WRITE JSON IS RUNNING")
+        #     try:
+        #         page, status = scrape_with_requests(config["url"])
+        #         logger.info(f"Scraped page title: {page.get('title')}")
+        #     except Exception as e:
+        #         logger.warning(f"Scraping failed: {e}")
+        # return config
 
-    @task()
-    def check_to_run_embedding(config):
-        """
+    # ✅ Define the task chain without calling them at parse time
+    validate_inputs_output = validate_inputs()
+    check_to_run_scraping_output = check_to_run_scraping(validate_inputs_output)
+    scrape_url(check_to_run_scraping_output)
 
-        :return:
-        """
-        result = check_and_update_database(config, task_to_run='embedding')
-        return result
 
-    @task()
-    def run_embedding():
-        """
+    # @task()
+    # def check_to_update_metadata(config):
+    #     """
+    #     Task will check the  table to see if the url exists and update the db.
+    #     if URL exists will set TriggerScraper = True
+    #     :param config:
+    #     :return:
+    #     """
+    #     return_conf = check_and_update_database(config, task_to_run='metadata')
+    #     return return_conf
+    #
+    # @task()
+    # def update_metadata(config):
+    #     """
+    #
+    #     :param config:
+    #     :return:
+    #     """
+    #     try:
+    #         update_metadata(config)
+    #     except Exception:
+    #         pass
+    #
+    #
 
-        :return:
-        """
-        pass
+    #
+    # @task()
+    # def check_to_run_embedding(config):
+    #     """
+    #
+    #     :return:
+    #     """
+    #     result = check_and_update_database(config, task_to_run='embedding')
+    #     return result
+    #
+    # @task()
+    # def run_embedding():
+    #     """
+    #
+    #     :return:
+    #     """
+    #     pass
+
 
 
 
@@ -225,28 +225,35 @@ def check_and_update_database(config: dict, task_to_run: str, session: SessionLo
 
 
 
-
-def get_or_create_injestion_status(status_name: str, session:SessionLocal=None) -> int:
-    """
-    Returns the ID of the given status.
-    If it doesn't exist, creates it and returns the new ID.
-    """
+def get_or_create_injestion_status(status_name: str, session: SessionLocal = None) -> int:
     session = session or SessionLocal()
     try:
+        # First try to get it
         status = session.query(TaskStatus).filter_by(name=status_name).first()
         if status:
             return status.id
 
-        # Create it if not found
+        # Try to create it
         new_status = TaskStatus(name=status_name)
         session.add(new_status)
         session.commit()
-        session.refresh(new_status)  # Load the ID
+        session.refresh(new_status)
         return new_status.id
+
+    except IntegrityError:
+        session.rollback()
+        # Someone else inserted it first, get it again
+        status = session.query(TaskStatus).filter_by(name=status_name).first()
+        if status:
+            return status.id
+        raise RuntimeError(f"Race condition: status '{status_name}' not found after IntegrityError")
 
     except Exception as e:
         session.rollback()
         raise RuntimeError(f"Failed to get or create status '{status_name}': {e}")
+
+    finally:
+        session.close()
 
 
 
@@ -368,20 +375,20 @@ def scrape_with_requests(url):
         if len(text) > 1000:  # Only return if we have substantial content
             page = {"title": title, "text": text, "url": url}
             logger.info(f"[requests] Successfully scraped URL: {url}")
-            return page
+            return page, 'Success'
         else:
             logger.warning(f"[requests] Insufficient content scraped from URL: {url}")
-            return None
+            return {}, "Failed"
 
     except requests.exceptions.Timeout:
         logger.warning(f"[requests] Timeout while scraping URL: {url}")
-        return None
+        return {}, "Failed"
     except requests.exceptions.RequestException as e:
         logger.warning(f"[requests] Failed to scrape URL: {url}, Error: {e}")
-        return None
+        return {}, "Failed"
     except Exception as e:
         logger.warning(
             f"[requests] Unexpected error while scraping URL: {url}, "
             f"Error: {e}"
         )
-        return None
+        return {}, "Failed"
