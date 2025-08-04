@@ -50,9 +50,9 @@ initialize our project database
 
 docker exec into the api server and run the command 
 ```bash
-airflow variables load dag/variables.json
+airflow variables import dag/variables.json
 ```
-this loads our workflow variables from the json file 
+this imports our workflow variables from the json file 
 
 ## Services Included
 

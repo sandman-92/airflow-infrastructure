@@ -11,78 +11,55 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from base import Base, engine
+from sqlalchemy import text
 
 
-class URLInjestion(Base):
-    """
-    Table to track URL ingestion status.
-    Status values: Queued, Running, Failed, Success
-    """
-    __tablename__ = "url_injestion"
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, TIMESTAMP
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 
-    id = Column(Integer, primary_key=True, index=True)
-    url = Column(String, nullable=False, unique=True, index=True)
-    status = Column(String, nullable=False, default="Queued")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationship to JsonFiles
-    json_files = relationship("JsonFiles", back_populates="url_injestion")
-    
-    # Relationship to FullArticleTextEmbedding
-    full_article_text_embeddings = relationship("FullArticleTextEmbedding", back_populates="url_injestion")
-    
-    def __repr__(self):
-        return f"<URLInjestion(id={self.id}, url='{self.url}', status='{self.status}')>"
+Base = declarative_base()
 
 
-class JsonFiles(Base):
-    """
-    Table to track JSON file processing status.
-    Status values: Queued, Running, Failed, Success
-    """
-    __tablename__ = "json_files"
+class URL(Base):
+    __tablename__ = "urls"
 
     id = Column(Integer, primary_key=True, index=True)
-    filepath = Column(String, nullable=False, unique=True, index=True)
-    status = Column(String, nullable=False, default="Queued")
-    url_id = Column(Integer, ForeignKey("url_injestion.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationship to URLInjestion
-    url_injestion = relationship("URLInjestion", back_populates="json_files")
-    
-    # Relationship to FullArticleTextEmbedding
-    full_article_text_embeddings = relationship("FullArticleTextEmbedding", back_populates="json_file")
-    
-    def __repr__(self):
-        return f"<JsonFiles(id={self.id}, filepath='{self.filepath}', status='{self.status}')>"
+    url = Column(String, unique=True, nullable=False, index=True)
+    json_file_path = Column(String, nullable=True)
+
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        nullable=False,
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    embeddings = relationship("Embedding", back_populates="url", cascade="all, delete-orphan")
 
 
-class FullArticleTextEmbedding(Base):
-    """
-    Table to store full article text embeddings with Qdrant vector collection index.
-    Status values: Queued, Running, Failed, Success
-    """
-    __tablename__ = "full_article_text_embedding"
+class Embedding(Base):
+    __tablename__ = "embeddings"
 
     id = Column(Integer, primary_key=True, index=True)
-    url_id = Column(Integer, ForeignKey("url_injestion.id"), nullable=False)
-    json_file_id = Column(Integer, ForeignKey("json_files.id"), nullable=False)
-    qdrant_index = Column(String, nullable=True, index=True)
-    qdrant_collection = Column(String, nullable=False, index=True)
-    status = Column(String, nullable=False, default="Queued")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    url_injestion = relationship("URLInjestion", back_populates="full_article_text_embeddings")
-    json_file = relationship("JsonFiles", back_populates="full_article_text_embeddings")
-    
-    def __repr__(self):
-        return f"<FullArticleTextEmbedding(id={self.id}, qdrant_index='{self.qdrant_index}')>"
+    url_id = Column(Integer, ForeignKey("urls.id", ondelete="CASCADE"), nullable=False)
+    collection = Column(String, nullable=False)
+    qdrant_index = Column(String, nullable=True)
 
+
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    url = relationship("URL", back_populates="embeddings")
 
 # Create all tables
 def create_tables():

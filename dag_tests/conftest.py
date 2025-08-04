@@ -14,74 +14,68 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from alembic.config import Config
+from alembic import command
 
 # Add models to path for imports
 import sys
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-models_path = os.path.join(project_root, 'models')
-sys.path.insert(0, models_path)
+root_dir = os.path.join(os.path.dirname(__file__), "..")
+sys.path.append(root_dir)
 
-from base import Base
-from model import URLInjestion, JsonFiles, FullArticleTextEmbedding
+
+from models.base import Base, get_current_engine
+from models.model import (
+    TaskStatus,
+    URLInjestion,
+    JsonFiles,
+    FullArticleTextEmbedding,
+    URLKeyWordTable,
+    GdeltKeywords
+)
 
 
 @pytest.fixture(scope="function")
 def test_db():
     """
-    Create a temporary SQLite database for testing.
-    
-    This fixture:
-    1. Creates a temporary SQLite database file
-    2. Sets up all tables using the existing models
-    3. Provides a session factory for tests
-    4. Cleans up the database after the test
-    
+    Create a temporary SQLite database for testing, using SQLAlchemy models directly.
+
     Returns:
         tuple: (engine, SessionLocal, db_path)
     """
-    # Store original environment variable
+    # Store original env var
     original_db_url = os.environ.get('APP_DATABASE_URL')
-    
-    # Create temporary database file
+
+    # Create temp database file
     db_fd, db_path = tempfile.mkstemp(suffix='.db')
     os.close(db_fd)
-    
-    # Create SQLite engine
+
     sqlite_url = f"sqlite:///{db_path}"
-    
-    # Set environment variable BEFORE any imports to ensure DAG functions use SQLite
     os.environ['APP_DATABASE_URL'] = sqlite_url
+
+    # Create engine using the current environment variable
+    engine = get_current_engine()
     
-    # Clear any cached modules to ensure fresh imports with new environment variable
-    modules_to_clear = [name for name in sys.modules.keys() if 'base' in name or 'model' in name]
-    for module_name in modules_to_clear:
-        if module_name in sys.modules:
-            del sys.modules[module_name]
+    # Import models to ensure they're registered with Base
+    from models import model
     
-    # Now create engine and tables
-    engine = create_engine(sqlite_url, echo=False)
+    # Get the Base instance that the models are actually using
+    models_base = model.Base
     
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
-    
-    # Create session factory
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
+    # Create all tables using the models' Base.metadata.create_all with the test engine
+    models_base.metadata.create_all(engine)
+
+    # Session factory
+    SessionLocal = sessionmaker(bind=engine)
+
     yield engine, SessionLocal, db_path
-    
-    # Cleanup
+
+    # Cleanup env
     if original_db_url:
         os.environ['APP_DATABASE_URL'] = original_db_url
     elif 'APP_DATABASE_URL' in os.environ:
         del os.environ['APP_DATABASE_URL']
-    
-    # Clear cached modules again to ensure clean state for next test
-    modules_to_clear = [name for name in sys.modules.keys() if 'base' in name or 'model' in name]
-    for module_name in modules_to_clear:
-        if module_name in sys.modules:
-            del sys.modules[module_name]
-    
-    # Remove temporary database file
+
+    # Remove temp DB file
     try:
         os.unlink(db_path)
     except OSError:

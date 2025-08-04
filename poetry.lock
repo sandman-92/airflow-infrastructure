@@ -309,15 +309,15 @@ statsd = ["statsd (>=3.3.0)"]
 
 [[package]]
 name = "apache-airflow-providers-common-compat"
-version = "1.7.2"
+version = "1.7.3"
 description = "Provider package apache-airflow-providers-common-compat for Apache Airflow"
 optional = false
-python-versions = "~=3.10"
+python-versions = ">=3.10"
 groups = ["main"]
 markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine != \"aarch64\" and platform_machine != \"ppc64le\" and platform_machine != \"x86_64\" and platform_machine != \"amd64\" and platform_machine != \"AMD64\" and platform_machine != \"win32\" and platform_machine != \"WIN32\""
 files = [
-    {file = "apache_airflow_providers_common_compat-1.7.2-py3-none-any.whl", hash = "sha256:b57398bb26f0afe0c80c8ffe4d0f36496ac367cdbda14ff0312a95f09a6f936c"},
-    {file = "apache_airflow_providers_common_compat-1.7.2.tar.gz", hash = "sha256:797450468766cbc00752060625b5e2690ffc5f40d8890f4f30951d56cf3d94be"},
+    {file = "apache_airflow_providers_common_compat-1.7.3-py3-none-any.whl", hash = "sha256:3a6f25a020fe72ebe3bbd02c050f01f39fdd7ed9c40a72f98c2587505f688a8a"},
+    {file = "apache_airflow_providers_common_compat-1.7.3.tar.gz", hash = "sha256:03438c75b01b18158689b78a2899b11066b3c453e0fd699d2055094341fc4551"},
 ]
 
 [package.dependencies]
@@ -329,15 +329,15 @@ standard = ["apache-airflow-providers-standard"]
 
 [[package]]
 name = "apache-airflow-providers-common-io"
-version = "1.6.1"
+version = "1.6.2"
 description = "Provider package apache-airflow-providers-common-io for Apache Airflow"
 optional = false
-python-versions = "~=3.10"
+python-versions = ">=3.10"
 groups = ["main"]
 markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine != \"aarch64\" and platform_machine != \"ppc64le\" and platform_machine != \"x86_64\" and platform_machine != \"amd64\" and platform_machine != \"AMD64\" and platform_machine != \"win32\" and platform_machine != \"WIN32\""
 files = [
-    {file = "apache_airflow_providers_common_io-1.6.1-py3-none-any.whl", hash = "sha256:54590eb60216d2a0beb13a7dc2777fabdc815f947b5ab387f097f492f4a3f317"},
-    {file = "apache_airflow_providers_common_io-1.6.1.tar.gz", hash = "sha256:2bfc3cfa85070b1e0e827566c4684f66b3d542670d74c4e5c4a8e4aaabd27f9f"},
+    {file = "apache_airflow_providers_common_io-1.6.2-py3-none-any.whl", hash = "sha256:5f2f166048f0da268f1b384c4234334452fec2bd1aed14ef5953f76a240dab87"},
+    {file = "apache_airflow_providers_common_io-1.6.2.tar.gz", hash = "sha256:f5c947fcbcc900d42af695e93df3b75dd4ff86253ece41871c5ce3b2d8b8b6d9"},
 ]
 
 [package.dependencies]
@@ -349,15 +349,15 @@ openlineage = ["apache-airflow-providers-openlineage"]
 
 [[package]]
 name = "apache-airflow-providers-common-sql"
-version = "1.27.3"
+version = "1.27.4"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 optional = false
-python-versions = "~=3.10"
+python-versions = ">=3.10"
 groups = ["main"]
 markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine != \"aarch64\" and platform_machine != \"ppc64le\" and platform_machine != \"x86_64\" and platform_machine != \"amd64\" and platform_machine != \"AMD64\" and platform_machine != \"win32\" and platform_machine != \"WIN32\""
 files = [
-    {file = "apache_airflow_providers_common_sql-1.27.3-py3-none-any.whl", hash = "sha256:9e796b6a2f932a24c8ad23d8d357a8533365bed333cde5f8fd07d709ab2762ca"},
-    {file = "apache_airflow_providers_common_sql-1.27.3.tar.gz", hash = "sha256:5efd7706ea6392eac564cac1652b905d9262c4c39ccc6867ac45831fa0fb98f4"},
+    {file = "apache_airflow_providers_common_sql-1.27.4-py3-none-any.whl", hash = "sha256:77e7b28a04772c05b67f9e16f17a742eed207d5e99d7161712c2bbaf76fce299"},
+    {file = "apache_airflow_providers_common_sql-1.27.4.tar.gz", hash = "sha256:bfc8fe1534954e081301bb09a7b6771e6132f2856e09953a982481e572d77da7"},
 ]
 
 [package.dependencies]
@@ -368,20 +368,20 @@ sqlparse = ">=0.5.1"
 
 [package.extras]
 openlineage = ["apache-airflow-providers-openlineage"]
-pandas = ["pandas (>=2.1.2)", "pandas (>=2.2.3)"]
+pandas = ["pandas (>=2.2.3)", "pandas[sql-other] (>=2.1.2)"]
 polars = ["polars (>=1.26.0)"]
 
 [[package]]
 name = "apache-airflow-providers-smtp"
-version = "2.1.1"
+version = "2.1.2"
 description = "Provider package apache-airflow-providers-smtp for Apache Airflow"
 optional = false
-python-versions = "~=3.10"
+python-versions = ">=3.10"
 groups = ["main"]
 markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine != \"aarch64\" and platform_machine != \"ppc64le\" and platform_machine != \"x86_64\" and platform_machine != \"amd64\" and platform_machine != \"AMD64\" and platform_machine != \"win32\" and platform_machine != \"WIN32\""
 files = [
-    {file = "apache_airflow_providers_smtp-2.1.1-py3-none-any.whl", hash = "sha256:66d1e69e3ab299611b41b1e16fd44b444d53fcd7727dccf44515be1b141b246a"},
-    {file = "apache_airflow_providers_smtp-2.1.1.tar.gz", hash = "sha256:1b2b7c7d17784a37e7c517a599356ea973942ee476de9651522ebd66ab7c5197"},
+    {file = "apache_airflow_providers_smtp-2.1.2-py3-none-any.whl", hash = "sha256:4416feda25320fb80cee8fb378a2548f5ee6fdda39218d270a06dd3b41567c11"},
+    {file = "apache_airflow_providers_smtp-2.1.2.tar.gz", hash = "sha256:c15caa55697c6c95a229944f1fe96d30134adfa425f74afeff12cdb8d4d061ae"},
 ]
 
 [package.dependencies]
@@ -390,15 +390,15 @@ apache-airflow-providers-common-compat = ">=1.6.1"
 
 [[package]]
 name = "apache-airflow-providers-standard"
-version = "1.4.1"
+version = "1.5.0"
 description = "Provider package apache-airflow-providers-standard for Apache Airflow"
 optional = false
-python-versions = "~=3.10"
+python-versions = ">=3.10"
 groups = ["main"]
 markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine != \"aarch64\" and platform_machine != \"ppc64le\" and platform_machine != \"x86_64\" and platform_machine != \"amd64\" and platform_machine != \"AMD64\" and platform_machine != \"win32\" and platform_machine != \"WIN32\""
 files = [
-    {file = "apache_airflow_providers_standard-1.4.1-py3-none-any.whl", hash = "sha256:44a22b9c0d892ae3fd4e4c4dc108f79575f254c9b64645223b99528db4d0e6af"},
-    {file = "apache_airflow_providers_standard-1.4.1.tar.gz", hash = "sha256:344c16a0903c2060b2f0099dcfe0728476da10825a9b667b389c534f95285c4b"},
+    {file = "apache_airflow_providers_standard-1.5.0-py3-none-any.whl", hash = "sha256:32313950e7e583e21885e7cf23c0d3f7ac37bd473966413ebddcae059975f308"},
+    {file = "apache_airflow_providers_standard-1.5.0.tar.gz", hash = "sha256:0cd3bc0b35d839adbba454077e5b06d9b4c7230a200d66a75573e5dd245b1d87"},
 ]
 
 [package.dependencies]
@@ -609,15 +609,15 @@ standard = ["fastapi[standard] (>=0.112.3)", "typer (>=0.7.0)"]
 
 [[package]]
 name = "certifi"
-version = "2025.7.14"
+version = "2025.8.3"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or platform_machine != \"aarch64\" and platform_machine != \"ppc64le\" and platform_machine != \"x86_64\" and platform_machine != \"amd64\" and platform_machine != \"AMD64\" and platform_machine != \"win32\" and platform_machine != \"WIN32\""
 files = [
-    {file = "certifi-2025.7.14-py3-none-any.whl", hash = "sha256:6b31f564a415d79ee77df69d757bb49a5bb53bd9f756cbbe24394ffd6fc1f4b2"},
-    {file = "certifi-2025.7.14.tar.gz", hash = "sha256:8ea99dbdfaaf2ba2f9bac77b9249ef62ec5218e7c2b2e903378ed5fccf765995"},
+    {file = "certifi-2025.8.3-py3-none-any.whl", hash = "sha256:f6c12493cfb1b06ba2ff328595af9350c65d6644968e5d3a2ffd78699af217a5"},
+    {file = "certifi-2025.8.3.tar.gz", hash = "sha256:e564105f78ded564e3ae7c923924435e1daa7463faeab5bb932bc53ffae63407"},
 ]
 
 [[package]]
@@ -3976,7 +3976,7 @@ files = [
 
 [package.dependencies]
 greenlet = [
-    {version = "!=0.4.17", markers = "python_version >= \"3\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"},
+    {version = "!=0.4.17", optional = true, markers = "python_version >= \"3\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or extra == \"asyncio\")"},
     {version = "!=0.4.17", optional = true, markers = "python_version >= \"3\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\" or extra == \"asyncio\")"},
 ]
 

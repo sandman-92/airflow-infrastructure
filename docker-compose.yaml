@@ -59,6 +59,7 @@ x-airflow-common:
     # Airflow configs
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    # Resource and process limiting configurations
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
@@ -127,6 +128,14 @@ services:
       retries: 5
       start_period: 5s
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
 
   postgres_app:
     image: postgres:13
@@ -145,6 +154,14 @@ services:
 #      retries: 5
 #      start_period: 5s
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
 
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
@@ -159,6 +176,14 @@ services:
       retries: 50
       start_period: 30s
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -177,6 +202,14 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
 
   airflow-apiserver:
     <<: *airflow-common
@@ -354,6 +387,8 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+
+
 
   airflow-cli:
     <<: *airflow-common

@@ -5,23 +5,30 @@ This DAG handles database initialization and migration using Alembic.
 It creates tables and runs migrations for the URL ingestion system.
 """
 
-from datetime import datetime, timedelta
+"""
+Database Migration DAG
+
+This DAG handles database initialization and migration using Alembic.
+It creates tables and runs migrations for the URL ingestion system.
+"""
+
 import logging
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
+
+# Ensure model path is included
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.operators.python import get_current_context
 from airflow.operators.bash import BashOperator
+from models.base import Base, get_current_engine
+from sqlalchemy import text
 
-# Import database functions from functions module
-from functions.database_functions import (
-    check_database_connection,
-    initialize_database,
-    check_migration_status,
-    create_sample_data
-)
+logger = logging.getLogger(__name__)
 
 
 # Default arguments for the DAG
@@ -34,6 +41,8 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
+
+
 
 with DAG(
     'database_migration_dag',
@@ -90,3 +99,74 @@ with DAG(
 
     # Set task dependencies
     check_db >> init_db >> init_alembic_task >> generate_migration_task >> run_migration_task >> check_migration
+
+
+def check_database_connection():
+    """Check if database connection is working"""
+    try:
+
+
+        # Test connection with fresh engine based on current environment
+        engine = get_current_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            logger.info("Database connection successful")
+            return {"success": True}
+
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def initialize_database():
+    """Initialize database tables"""
+    try:
+        # Add models to Python path
+
+        # Create all tables using current engine
+        engine = get_current_engine()
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+        return {"success": True}
+
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def check_migration_status():
+    """Check current migration status"""
+    try:
+        # Add models to Python path
+
+        engine = get_current_engine()
+        with engine.connect() as conn:
+            # Use SQLite-compatible query for checking table existence
+            result = conn.execute(text("""
+                                       SELECT name
+                                       FROM sqlite_master
+                                       WHERE type = 'table'
+                                         AND name = 'alembic_version'
+                                       UNION ALL
+                                       SELECT table_name
+                                       FROM information_schema.tables
+                                       WHERE table_name = 'alembic_version'
+                                       """))
+
+            table_exists = result.fetchone() is not None
+
+            if table_exists:
+                # Get current revision
+                result = conn.execute(text("SELECT version_num FROM alembic_version"))
+                current_revision = result.scalar()
+                logger.info(f"Current migration revision: {current_revision}")
+                return {"status": "migrated", "revision": current_revision}
+            else:
+                logger.info("No migration history found")
+                return {"status": "no_migration", "revision": None}
+
+    except Exception as e:
+        logger.error(f"Failed to check migration status: {e}")
+        return {"status": "error", "error": str(e)}
+
+
