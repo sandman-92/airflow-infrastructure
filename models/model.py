@@ -14,124 +14,52 @@ from base import Base, engine
 from sqlalchemy import text
 
 
-class TaskStatus(Base):
-    __tablename__ = "task_status"
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, TIMESTAMP
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, nullable=False)
-
-    url_injestions = relationship("URLInjestion", back_populates="status")
-    json_files = relationship("JsonFiles", back_populates="task_status")
+Base = declarative_base()
 
 
-class URLInjestion(Base):
-    __tablename__ = "url_injestion"
+class URL(Base):
+    __tablename__ = "urls"
 
     id = Column(Integer, primary_key=True, index=True)
-    url = Column(String, nullable=False, unique=True, index=True)
+    url = Column(String, unique=True, nullable=False, index=True)
+    json_file_path = Column(String, nullable=True)
 
-    status_id = Column(Integer, ForeignKey("task_status.id"), nullable=False)
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        nullable=False,
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
 
-    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = Column(DateTime(timezone=True), onupdate=text('CURRENT_TIMESTAMP'))
-
-    # Relationships
-    status = relationship("TaskStatus", back_populates="url_injestions")
-    json_files = relationship("JsonFiles", back_populates="url_injestion")
-    full_article_text_embeddings = relationship("FullArticleTextEmbedding", back_populates="url_injestion")
-    url_keywords = relationship("URLKeyWordTable", back_populates="url_injestion")
-    def __repr__(self):
-        return f"<URLInjestion(id={self.id}, item='{self.url}', status_id='{self.status_id}')>"
+    embeddings = relationship("Embedding", back_populates="url", cascade="all, delete-orphan")
 
 
-
-
-class JsonFiles(Base):
-    """
-    Table to track JSON file processing status.
-    Status values: Queued, Running, Failed, Success
-    """
-    __tablename__ = "json_files"
+class Embedding(Base):
+    __tablename__ = "embeddings"
 
     id = Column(Integer, primary_key=True, index=True)
-    filepath = Column(String, nullable=False, unique=True, index=True)
-    status_id = Column(Integer, ForeignKey("task_status.id"))
-    url_id = Column(Integer, ForeignKey("url_injestion.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = Column(DateTime(timezone=True), onupdate=text('CURRENT_TIMESTAMP'))
-    
-    # Relationship to URLInjestion
-    url_injestion = relationship("URLInjestion", back_populates="json_files")
-
-    #Relationship to task_status
-    task_status = relationship("TaskStatus", back_populates="json_files")
-    
-    # Relationship to FullArticleTextEmbedding
-    full_article_text_embeddings = relationship("FullArticleTextEmbedding", back_populates="json_file")
-    
-    def __repr__(self):
-        return f"<JsonFiles(id={self.id}, filepath='{self.filepath}', status='{self.status}')>"
+    url_id = Column(Integer, ForeignKey("urls.id", ondelete="CASCADE"), nullable=False)
+    collection = Column(String, nullable=False)
+    qdrant_index = Column(String, nullable=True)
 
 
-class FullArticleTextEmbedding(Base):
-    """
-    Table to store full article text embeddings with Qdrant vector collection index.
-    Status values: Queued, Running, Failed, Success
-    """
-    __tablename__ = "full_article_text_embedding"
+    created_at = Column(
+        TIMESTAMP(timezone=True),
+        default=datetime.utcnow,
+        nullable=False,
+    )
 
-    id = Column(Integer, primary_key=True, index=True)
-    url_id = Column(Integer, ForeignKey("url_injestion.id"), nullable=False)
-    json_file_id = Column(Integer, ForeignKey("json_files.id"), nullable=False)
-    qdrant_index = Column(String, nullable=True, index=True)
-    qdrant_collection = Column(String, nullable=True, index=True)
-    status_id = Column(Integer, ForeignKey("task_status.id"))
-    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = Column(DateTime(timezone=True), onupdate=text('CURRENT_TIMESTAMP'))
-    
-    # Relationships
-    url_injestion = relationship("URLInjestion", back_populates="full_article_text_embeddings")
-    json_file = relationship("JsonFiles", back_populates="full_article_text_embeddings")
-    
-    def __repr__(self):
-        return f"<FullArticleTextEmbedding(id={self.id}, qdrant_index='{self.qdrant_index}')>"
-
-
-class URLKeyWordTable(Base):
-    """
-    registers which gdelt keywords the URLS are associated with
-    """
-    __tablename__ = "url_keyword_table"
-    id = Column(Integer, primary_key=True, index=True)
-    url_id = Column(Integer, ForeignKey("url_injestion.id"), nullable=False)
-    keyword_id = Column(Integer, ForeignKey("gdelt_keywords.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = Column(DateTime(timezone=True), onupdate=text('CURRENT_TIMESTAMP'))
-
-
-    #relationships
-    url_injestion = relationship("URLInjestion", back_populates="url_keywords")
-    gdelt_keyword = relationship("GdeltKeywords", back_populates="url_keywords")
-
-
-    def __repr__(self):
-        return f"<URLKeyWordTable(id={self.id}, url_id={self.url_id}, keyword_id={self.keyword_id})>"
-
-class GdeltKeywords(Base):
-    """
-    key word search table for gdelt library
-    """
-    __tablename__ = "gdelt_keywords"
-    id = Column(Integer, primary_key=True, index=True)
-    keyword = Column(String, nullable=False, unique=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = Column(DateTime(timezone=True), onupdate=text('CURRENT_TIMESTAMP'))
-
-    #relationships:
-    url_keywords = relationship("URLKeyWordTable", back_populates="gdelt_keyword")
-
-    def __repr__(self):
-        return f"<GdeltKeywords(id={self.id}, keyword='{self.keyword}')>"
+    url = relationship("URL", back_populates="embeddings")
 
 # Create all tables
 def create_tables():

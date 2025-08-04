@@ -6,6 +6,7 @@ This document outlines the coding standards, testing strategy, and development e
 
 * project is being developed in windows subsystem linux. use linux commands and linux file paths. 
 * the project base directory is in /home/sandy/GitHub/airflow-infrastructure
+* docker compose can be run with `docker compose`
 
 ## 🧠 Project Scope
 

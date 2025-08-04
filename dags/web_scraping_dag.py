@@ -1,24 +1,29 @@
-from airflow import DAG
-from airflow.decorators import task
-from airflow.sdk import Variable
-from urllib3.util.retry import Retry
-from bs4 import BeautifulSoup
-import requests
-from requests.adapters import HTTPAdapter
-from airflow.operators.python import get_current_context
+import hashlib
+import json
+import logging
+import os
+import pprint
+import sys
 from datetime import datetime, timedelta
 from typing import Any
-import logging
-import pprint
 
-import sys
-import os
+import requests
+from airflow import DAG
+from airflow.decorators import task
+from airflow.operators.python import get_current_context
+from airflow.sdk import Variable
+from bs4 import BeautifulSoup
+from openai import OpenAI
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import PointStruct, VectorParams
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from models.base import SessionLocal
-from models.model import URLInjestion, TaskStatus, GdeltKeywords, URLKeyWordTable, JsonFiles, \
-    FullArticleTextEmbedding
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.exc import IntegrityError
+from models.model import URL, Embedding
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 logger = logging.getLogger(__name__)
 # Default arguments for the DAG
 default_args = {
@@ -59,165 +64,306 @@ with DAG(
         logger.info("web scraping dag called with conf")
         logger.info("conf:\n%s", pprint.pformat(conf, indent=2))
 
+        logger.info("Running Dag with config:\n%s", pprint.pformat(conf, indent=2))
+
         return conf
 
+
     @task()
-    def check_to_run_scraping(config):
-        return check_and_update_database(config, task_to_run="scraping")
+    def check_should_scrape(config):
+        """
+        Check if we should scrape this URL.
+        If it doesn't exist in the DB, insert it and mark it for scraping.
+        """
+        logger.info("Running check_should_scrape task with config \n%s", pprint.pformat(config, indent=2))
+        session = SessionLocal()
+        try:
+            url_obj = session.query(URL).filter(URL.url == config["url"]).first()
+
+            if url_obj:
+                # Already in DB
+                config["url_id"] = url_obj.id
+                config["TriggerScraper"] = url_obj.json_file_path is None
+            else:
+                # Not in DB — insert
+                new_url = URL(url=config["url"])
+                session.add(new_url)
+                session.commit()
+                session.refresh(new_url)
+
+                config["url_id"] = new_url.id
+                config["TriggerScraper"] = True
+
+        except Exception as e:
+            logger.error(f"check_should_scrape error: {e}")
+            raise
+        finally:
+            session.close()
+
+        logger.info("Exiting check_should_scrape with config \n%s", pprint.pformat(config, indent=2))
+        return config
+
 
     @task()
     def scrape_url(config):
-        if config["TriggerScraper"] or config["OverrideTriggerScraper"]:
-            try:
-                page, status = scrape_with_requests(config["url"])
-                logger.info(f"Scraped page title: {page.get('title')}")
-            except Exception as e:
-                logger.warning(f"Scraping failed: {e}")
-                status = "Failed"
 
-            if status == "Failed":
+        logger.info("Running scrape_url task with config \n%s", pprint.pformat(config, indent=2))
 
-                config['TriggerJson'] = False
-                config['TriggerEmbedding'] = False
-                raise UserWarning('Failed, dont run downstream tasks')
+        if not config.get("TriggerScraper"):
+            return config
+
+        logger.info(f"Scraping URL: {config['url']}")
+        page, status = scrape_with_requests(config["url"])
+
+        if status == "Failed":
+            config["TriggerJson"] = False
+            config["TriggerEmbedding"] = False
+            raise UserWarning("Scraping failed.")
+
+        # Save scraped data to config
+        config["scraped_text"] = page["text"]
+        config["scraped_title"] = page.get("title")
+
         return config
 
     @task()
-    def check_to_write_json(config):
+    def should_write_json(config: dict, base_path: str = "/opt/airflow/data/request_json", session=None) -> dict:
         """
+        Determines if JSON should be written for a URL. Computes a hash-based filepath and updates DB if needed.
 
-        :return:
+        Args:
+            config: Dictionary with at least "url" key.
+            base_path: Where JSON files are written (default is Airflow container data folder).
+            session: Optional SQLAlchemy session (for testability).
+
+        Returns:
+            config dict with updated keys:
+                - "json_file_path"
+                - "TriggerJson": True/False
         """
-        return check_and_update_database(config, task_to_run='writejson')
+        logger.info("Running should_write_json task with config \n%s", pprint.pformat(config, indent=2))
+
+
+        session = session or SessionLocal()
+        url = config["url"]
+
+        try:
+            url_obj = session.query(URL).filter(URL.url == url).first()
+            if not url_obj:
+                raise ValueError(f"URL not found in database: {url}")
+
+            # If already has path, assume written
+            if url_obj.json_file_path:
+                config["json_file_path"] = url_obj.json_file_path
+                config["TriggerJson"] = False
+                return config
+
+            # Compute path
+            hashed_filename = hash_url_for_filename(url)
+            json_path = os.path.join(base_path, f"{hashed_filename}")
+
+            # Update DB
+            url_obj.json_file_path = json_path
+            session.commit()
+
+            config["json_file_path"] = json_path
+            config["TriggerJson"] = True
+            return config
+
+        finally:
+            session.close()
 
     @task()
     def write_json(config):
-        """
 
-        :return:
-        """
-        logger.info("WRITE JSON IS RUNNING")
-        if config["TriggerJson"] or config["OverrideTriggerJson"]:
-            logger.info("WRITE JSON IS RUNNING")
-        #     try:
-        #         page, status = scrape_with_requests(config["url"])
-        #         logger.info(f"Scraped page title: {page.get('title')}")
-        #     except Exception as e:
-        #         logger.warning(f"Scraping failed: {e}")
-        # return config
+        logger.info("Running write_json task with config \n%s", pprint.pformat(config, indent=2))
 
-    # ✅ Define the task chain without calling them at parse time
-    validate_inputs_output = validate_inputs()
-    check_to_run_scraping_output = check_to_run_scraping(validate_inputs_output)
-    scrape_url(check_to_run_scraping_output)
+        if not config.get("TriggerJson"):
+            return config
 
+        filepath = config['json_file_path']
+        with open(filepath, "w") as f:
+            json.dump({
+                "url": config["url"],
+                "title": config.get("scraped_title"),
+                "text": config["scraped_text"],
+            }, f)
 
-    # @task()
-    # def check_to_update_metadata(config):
-    #     """
-    #     Task will check the  table to see if the url exists and update the db.
-    #     if URL exists will set TriggerScraper = True
-    #     :param config:
-    #     :return:
-    #     """
-    #     return_conf = check_and_update_database(config, task_to_run='metadata')
-    #     return return_conf
-    #
-    # @task()
-    # def update_metadata(config):
-    #     """
-    #
-    #     :param config:
-    #     :return:
-    #     """
-    #     try:
-    #         update_metadata(config)
-    #     except Exception:
-    #         pass
-    #
-    #
-
-    #
-    # @task()
-    # def check_to_run_embedding(config):
-    #     """
-    #
-    #     :return:
-    #     """
-    #     result = check_and_update_database(config, task_to_run='embedding')
-    #     return result
-    #
-    # @task()
-    # def run_embedding():
-    #     """
-    #
-    #     :return:
-    #     """
-    #     pass
-
-
-
-
-
-
-def check_and_update_database(config: dict, task_to_run: str, session: SessionLocal = None, set_status: str = "Running"):
-    logger.info(f"Checking {task_to_run} table for previous record")
-
-    task_to_run_lookup = {
-        "scraping": (URLInjestion, "TriggerScraper", URLInjestion.url, "url"),
-        "writejson": (JsonFiles, "TriggerJson", JsonFiles.filepath, "filepath"),
-        "embedding": (FullArticleTextEmbedding, "TriggerEmbedding", FullArticleTextEmbedding.url_id, "url_id"),
-    }
-
-    table, trigger_variable, table_column, config_key = task_to_run_lookup[task_to_run]
-
-    session = session or SessionLocal()
-
-    try:
-        # Ensure URL ID exists for writejson/embedding tasks
-        if task_to_run in {"writejson", "embedding"}:
-            if "url_id" not in config:
-                url_str = config["url"]
-                url_obj = session.query(URLInjestion).filter(URLInjestion.url == url_str).first()
-                if not url_obj:
-                    raise ValueError(f"No URLInjestion found for: {url_str}")
-                config["url_id"] = url_obj.id
-
-        lookup_item = config[config_key]
-        existing = session.query(table).filter(table_column == lookup_item).first()
-
-        status_id = get_or_create_injestion_status(status_name=set_status, session=session)
-        kwargs = {
-            config_key: lookup_item,
-            "status_id": status_id
-        }
-
-        if task_to_run in {"writejson", "embedding"}:
-            kwargs["url_id"] = config["url_id"]
-
-        if task_to_run == "embedding":
-            # Resolve json_file_id using filepath from config
-            if "filepath" not in config:
-                raise ValueError("Missing 'filepath' in config for embedding task")
-            json_file = session.query(JsonFiles).filter_by(filepath=config["filepath"]).first()
-            if not json_file:
-                raise ValueError(f"No JsonFiles entry found for filepath: {config['filepath']}")
-            kwargs["json_file_id"] = json_file.id
-
-        if existing:
-            logger.info(f"{lookup_item} exists in {task_to_run}, setting {trigger_variable} to False")
-            config[trigger_variable] = False
-        else:
-            logger.info(f"{lookup_item} does NOT exist in {task_to_run}, setting {trigger_variable} to True")
-            new_entry = table(**kwargs)
-            session.add(new_entry)
+        session = SessionLocal()
+        try:
+            url_obj = session.query(URL).get(config["url_id"])
+            url_obj.json_file_path = filepath
             session.commit()
-            config[trigger_variable] = True
+        finally:
+            session.close()
 
-    except Exception as exc:
-        logger.warning(f"Exception Raised: {exc}")
-        config[trigger_variable] = False
-        raise
+        config["json_file_path"] = filepath
+        return config
+
+
+    @task()
+    def should_trigger_embeddings(config: dict, session=None) -> dict:
+        """
+        Checks whether to trigger embedding for the URL.
+        If not already embedded, creates a placeholder entry to avoid race conditions.
+
+        Returns:
+            Updated config with:
+                - "url_id"
+                - "collection"
+                - "TriggerEmbedding"
+        """
+        logger.info("Running should_trigger_embeddings task with config \n%s", pprint.pformat(config, indent=2))
+
+        session = session or SessionLocal()
+        url = config["url"]
+        collection = config.get("collection", "full_text_embedding")
+
+        if not collection:
+            raise ValueError("Missing 'collection' in config — required to insert Embedding row.")
+
+        try:
+            url_obj = session.query(URL).filter(URL.url == url).first()
+            if not url_obj:
+                raise ValueError(f"URL not found in database: {url}")
+
+            config["url_id"] = url_obj.id
+            config["collection"] = collection  # propagate for later tasks
+
+            existing = session.query(Embedding).filter(Embedding.url_id == url_obj.id).first()
+            if existing:
+                config["TriggerEmbedding"] = False
+                return config
+
+            # Insert placeholder with collection
+            placeholder = Embedding(
+                url_id=url_obj.id,
+                collection=collection,
+                qdrant_index=None,
+            )
+            session.add(placeholder)
+            session.commit()
+
+            config["TriggerEmbedding"] = True
+            return config
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error in should_trigger_embeddings: {e}")
+            config["TriggerEmbedding"] = False
+            raise
+
+        finally:
+            session.close()
+
+
+    @task()
+    def fetch_embedding_save_qdrant(config):
+        """
+
+        Args:
+            config:
+
+        Returns:
+
+        """
+
+        logger.info("Running getting_embedding task with config \n%s", pprint.pformat(config, indent=2))
+
+        collection = config.get('collection', 'full_text_embedding')
+        model_name = config.get('model_name', 'text-embedding-3-small')
+
+
+        if not config.get("TriggerEmbedding", False):
+            logger.info("TriggerEmbedding is False. Skipping embedding generation.")
+            return config
+
+        if "scraped_text" not in config or not config["scraped_text"]:
+            raise ValueError("Missing 'scraped_text' in config. Cannot generate embedding.")
+
+        # fetch embedding
+        try:
+
+            embedding_vector = generate_embedding(
+                content=config["scraped_text"],
+                model=model_name,
+                client=OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            )
+        except Exception as embed_err:
+            logger.error(f"Embedding generation failed: {embed_err}")
+            config["embedding_created"] = False
+            raise
+
+        # Save to Qdrant
+        try:
+            qdrant_host = os.getenv("QDRANT_HOST", "qdrant")
+            qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
+            client = QdrantClient(host=qdrant_host, port=qdrant_port)
+
+            point = PointStruct(
+                id=config["url_id"],  # Ensure this is a unique and consistent ID
+                vector=embedding_vector,
+                payload={
+                    "url": config["url"],
+                    "title": config.get("scraped_title"),
+                    "collection": collection,
+                }
+            )
+
+            client.upsert(collection_name=collection, points=[point])
+            logger.info(f"Successfully saved embedding for URL: {config['url']}")
+            config["embedding_created"] = True
+        except Exception as qdrant_err:
+            logger.error(f"Failed to save to Qdrant: {qdrant_err}")
+            config["embedding_created"] = False
+            raise
+
+        #update the db
+        try:
+            session = SessionLocal()
+            embedding_entry = Embedding(
+                url_id=config["url_id"],
+                collection=collection,
+                qdrant_index=str(config["url_id"])  # If you're using `url_id` as Qdrant index
+            )
+            session.add(embedding_entry)
+            session.commit()
+            session.refresh(embedding_entry)
+        except Exception as e:
+            logger.error(f"Embedding or DB update failed: {str(e)}")
+            config["embedding_created"] = False
+            raise
+        finally:
+            session.close()
+
+        return config
+
+    conf = validate_inputs()
+    scrape_check = check_should_scrape(conf)
+    scraped_output = scrape_url(scrape_check)
+    json_trigger = should_write_json(scraped_output)
+    written_json_conf = write_json(json_trigger)
+    should_trigger_embedding_conf = should_trigger_embeddings(written_json_conf)
+    fetched_embedding_conf = fetch_embedding_save_qdrant(should_trigger_embedding_conf)
+
+
+# Functions
+def get_or_create_url_entry(config, session: SessionLocal = None) -> dict:
+    """
+    Ensures URL exists in the `urls` table.
+    """
+    session = session or SessionLocal()
+    try:
+        url_obj = session.query(URL).filter(URL.url == config["url"]).first()
+        if not url_obj:
+            url_obj = URL(url=config["url"])
+            session.add(url_obj)
+            session.commit()
+            session.refresh(url_obj)
+
+        config["url_id"] = url_obj.id
+        config["json_file_path"] = url_obj.json_file_path  # might be None
+
     finally:
         session.close()
 
@@ -225,41 +371,13 @@ def check_and_update_database(config: dict, task_to_run: str, session: SessionLo
 
 
 
-def get_or_create_injestion_status(status_name: str, session: SessionLocal = None) -> int:
-    session = session or SessionLocal()
-    try:
-        # First try to get it
-        status = session.query(TaskStatus).filter_by(name=status_name).first()
-        if status:
-            return status.id
-
-        # Try to create it
-        new_status = TaskStatus(name=status_name)
-        session.add(new_status)
-        session.commit()
-        session.refresh(new_status)
-        return new_status.id
-
-    except IntegrityError:
-        session.rollback()
-        # Someone else inserted it first, get it again
-        status = session.query(TaskStatus).filter_by(name=status_name).first()
-        if status:
-            return status.id
-        raise RuntimeError(f"Race condition: status '{status_name}' not found after IntegrityError")
-
-    except Exception as e:
-        session.rollback()
-        raise RuntimeError(f"Failed to get or create status '{status_name}': {e}")
-
-    finally:
-        session.close()
 
 
 
 
 
-def update_row( model, filters: dict, updates: dict) -> bool:
+
+def update_row( model, filters: dict, updates: dict, session:SessionLocal = None) -> bool:
     """
     Updates a row in the given SQLAlchemy model/table.
 
@@ -272,7 +390,7 @@ def update_row( model, filters: dict, updates: dict) -> bool:
     Returns:
         True if a row was updated, False if no matching row was found.
     """
-    session = SessionLocal()
+    session = session or SessionLocal()
     try:
         row = session.query(model).filter_by(**filters).first()
         if not row:
@@ -290,6 +408,12 @@ def update_row( model, filters: dict, updates: dict) -> bool:
     finally:
         session.close()
 
+
+def hash_url_for_filename(url: str) -> str:
+    # Generate SHA-256 hash and clean up to start with alphanumeric
+    raw_hash = hashlib.sha256(url.encode()).hexdigest()
+    filename = f"fn_{raw_hash}.json"
+    return filename
 
 def scrape_with_requests(url):
     """
@@ -392,3 +516,34 @@ def scrape_with_requests(url):
             f"Error: {e}"
         )
         return {}, "Failed"
+
+
+def generate_embedding(content: str, client: OpenAI = None, model: str = "text-embedding-3-small"):
+    """
+    Generate embedding using OpenAI API with test mode support.
+
+    Args:
+        content (str): The text content to embed
+        client (OpenAI): The OpenAI client instance
+        model (str): The embedding model to use
+
+    Returns:
+        list: The embedding vector as a list of floats
+    """
+
+    logger.info(f"Generating embedding for content")
+    logger.info(f"using model {model}")
+    client = client or OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    )
+
+    try:
+        response = client.embeddings.create(
+            model=model,
+            input=content,
+        )
+    except Exception as e:
+        logger.error(f"Error generating embedding: {str(e)}")
+        raise
+    return response.data[0].embedding
