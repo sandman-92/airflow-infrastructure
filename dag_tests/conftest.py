@@ -24,71 +24,59 @@ sys.path.append(root_dir)
 
 
 from models.base import Base
-from models.model import TaskStatus, URLInjestion, JsonFiles, FullArticleTextEmbedding, URLKeyWordTable, GdeltKeywords
+from models.model import (
+    TaskStatus,
+    URLInjestion,
+    JsonFiles,
+    FullArticleTextEmbedding,
+    URLKeyWordTable,
+    GdeltKeywords
+)
 
 
 @pytest.fixture(scope="function")
 def test_db():
     """
-    Create a temporary SQLite database for testing.
-    
-    This fixture:
-    1. Creates a temporary SQLite database file
-    2. Sets up all tables using the existing models
-    3. Provides a session factory for tests
-    4. Cleans up the database after the test
-    
+    Create a temporary SQLite database for testing, using SQLAlchemy models directly.
+
     Returns:
         tuple: (engine, SessionLocal, db_path)
     """
-    # Store original environment variable
+    # Store original env var
     original_db_url = os.environ.get('APP_DATABASE_URL')
-    
-    # Create temporary database file
+
+    # Create temp database file
     db_fd, db_path = tempfile.mkstemp(suffix='.db')
     os.close(db_fd)
-    
-    # Create SQLite engine
+
     sqlite_url = f"sqlite:///{db_path}"
-    
-    # Set environment variable BEFORE any imports to ensure DAG functions use SQLite
     os.environ['APP_DATABASE_URL'] = sqlite_url
-    
-    # Clear any cached modules to ensure fresh imports with new environment variable
-    modules_to_clear = [name for name in sys.modules.keys() if 'base' in name or 'model' in name]
-    for module_name in modules_to_clear:
-        if module_name in sys.modules:
-            del sys.modules[module_name]
 
+    # Clear model cache to avoid old connections
+    modules_to_clear = [name for name in sys.modules if 'base' in name or 'model' in name]
+    for name in modules_to_clear:
+        sys.modules.pop(name, None)
 
-    # Now create engine and tables
+    # Create engine and tables
     engine = create_engine(sqlite_url, echo=True)
-    
-    alembic_config = Config(
-        os.path.join(root_dir, "models/alembic/alembic.ini")
-    )
-    alembic_config.set_main_option("sqlalchemy.url", sqlite_url)
-    alembic_config.set_main_option("script_location", os.path.join(root_dir, "models/alembic/"))
-    command.upgrade(alembic_config, "head")
-    
-    # Create session factory
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
+    Base.metadata.create_all(engine)  # 🚨 Skips Alembic — use models directly
+
+    # Session factory
+    SessionLocal = sessionmaker(bind=engine)
+
     yield engine, SessionLocal, db_path
-    
-    # Cleanup
+
+    # Cleanup env
     if original_db_url:
         os.environ['APP_DATABASE_URL'] = original_db_url
     elif 'APP_DATABASE_URL' in os.environ:
         del os.environ['APP_DATABASE_URL']
-    
-    # Clear cached modules again to ensure clean state for next test
-    modules_to_clear = [name for name in sys.modules.keys() if 'base' in name or 'model' in name]
-    for module_name in modules_to_clear:
-        if module_name in sys.modules:
-            del sys.modules[module_name]
-    
-    # Remove temporary database file
+
+    # Clear cached modules again
+    for name in modules_to_clear:
+        sys.modules.pop(name, None)
+
+    # Remove temp DB file
     try:
         os.unlink(db_path)
     except OSError:
