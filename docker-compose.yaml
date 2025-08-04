@@ -223,14 +223,6 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -246,14 +238,6 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -269,14 +253,6 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -298,14 +274,6 @@ services:
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 3G
-        reservations:
-          cpus: '0.5'
-          memory: 1536M
     depends_on:
       <<: *airflow-common-depends-on
       airflow-apiserver:
@@ -323,14 +291,6 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -428,14 +388,6 @@ services:
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
 
-  airflow-python:
-    <<: *airflow-common
-    profiles:
-      - debug
-    environment:
-      <<: *airflow-common-env
-    user: "50000:0"
-    entrypoint: [ "/bin/bash", "-c" ]
 
 
   airflow-cli:
@@ -470,14 +422,6 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 1G
-        reservations:
-          cpus: '0.1'
-          memory: 512M
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:

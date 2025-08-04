@@ -37,6 +37,7 @@ project-root/
 * Python development is done inside **WSL**.
 * A **Poetry-managed virtual environment** is used.
 * Ensure the virtual environment is activated before working:
+* please keep all imports at the top of the file
 
   ```bash
   poetry env activate 
