@@ -26,8 +26,8 @@ with DAG(
     dag_id='gdelt_url_injestion_dag',
     default_args=default_args,
     start_date=datetime.utcnow() - timedelta(days=1),
-    # schedule='*/30 * * * *',
-    schedule=None,
+    schedule="0 */3 * * *",
+    # schedule=None,
     catchup=False,
     tags=['airflow-3.0', 'gdelt', 'fanout'],
 ) as dag:
@@ -171,7 +171,8 @@ def fetch_gdelt_urls(keywords: List[str], api_endpoint: str,
             "format": "json",
             "maxrecords": max_urls_per_run,
             "sort": "DateDesc",
-            "startdatetime": start_str
+            "startdatetime": start_str,
+            "SourceLang": "English"
         }
 
         try:

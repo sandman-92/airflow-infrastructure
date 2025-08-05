@@ -12,9 +12,11 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.python import get_current_context
 from airflow.sdk import Variable
+from airflow.exceptions import AirflowSkipException
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from qdrant_client import QdrantClient
+from qdrant_client.models import Distance
 from qdrant_client.http.models import PointStruct, VectorParams
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -300,6 +302,17 @@ with DAG(
             qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
             client = QdrantClient(host=qdrant_host, port=qdrant_port)
 
+            # Ensure collection exists
+            if not client.collection_exists(collection):
+                logger.info(f"Collection '{collection}' does not exist. Creating it...")
+                client.create_collection(
+                    collection_name=collection,
+                    vectors_config=VectorParams(
+                        size=len(embedding_vector),  # must match your embedding size
+                        distance=Distance.COSINE  # or EUCLID/ DOT depending on use case
+                    )
+                )
+
             point = PointStruct(
                 id=config["url_id"],  # Ensure this is a unique and consistent ID
                 vector=embedding_vector,
@@ -502,7 +515,8 @@ def scrape_with_requests(url):
             return page, 'Success'
         else:
             logger.warning(f"[requests] Insufficient content scraped from URL: {url}")
-            return {}, "Failed"
+            raise AirflowSkipException(f"Insufficient content scraped from URL: {url}")
+
 
     except requests.exceptions.Timeout:
         logger.warning(f"[requests] Timeout while scraping URL: {url}")
