@@ -131,11 +131,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '${POSTGRES_CPU_ALLOCATION:-0.5}'
+          memory: '${POSTGRES_RAM_ALLOCATION:-1G}'
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '${POSTGRES_CPU_ALLOCATION:-0.5}'
+          memory: '${POSTGRES_RAM_ALLOCATION:-1G}'
 
   postgres_app:
     image: postgres:13
@@ -157,11 +157,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '${POSTGRES_APP_CPU_ALLOCATION:-0.25}'
+          memory: '${POSTGRES_APP_RAM_ALLOCATION:-512M}'
         reservations:
-          cpus: '0.1'
-          memory: 256M
+          cpus: '${POSTGRES_APP_CPU_ALLOCATION:-0.25}'
+          memory: '${POSTGRES_APP_RAM_ALLOCATION:-512M}'
 
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
@@ -179,11 +179,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '${REDIS_CPU_ALLOCATION:-0.25}'
+          memory: '${REDIS_RAM_ALLOCATION:-512M}'
         reservations:
-          cpus: '0.1'
-          memory: 256M
+          cpus: '${REDIS_CPU_ALLOCATION:-0.25}'
+          memory: '${REDIS_RAM_ALLOCATION:-512M}'
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -205,11 +205,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '${QDRANT_CPU_ALLOCATION:-0.5}'
+          memory: '${QDRANT_RAM_ALLOCATION:-1G}'
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '${QDRANT_CPU_ALLOCATION:-0.5}'
+          memory: '${QDRANT_RAM_ALLOCATION:-1G}'
 
   airflow-apiserver:
     <<: *airflow-common
@@ -226,11 +226,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '${AIRFLOW_APISERVER_CPU_ALLOCATION:-1.0}'
+          memory: '${AIRFLOW_APISERVER_RAM_ALLOCATION:-2G}'
         reservations:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '${AIRFLOW_APISERVER_CPU_ALLOCATION:-1.0}'
+          memory: '${AIRFLOW_APISERVER_RAM_ALLOCATION:-2G}'
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -249,11 +249,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '${AIRFLOW_SCHEDULER_CPU_ALLOCATION:-1.0}'
+          memory: '${AIRFLOW_SCHEDULER_RAM_ALLOCATION:-2G}'
         reservations:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '${AIRFLOW_SCHEDULER_CPU_ALLOCATION:-1.0}'
+          memory: '${AIRFLOW_SCHEDULER_RAM_ALLOCATION:-2G}'
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -272,11 +272,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 8G
+          cpus: '${AIRFLOW_DAG_PROCESSOR_CPU_ALLOCATION:-1}'
+          memory: '${AIRFLOW_DAG_PROCESSOR_RAM_ALLOCATION:-8G}'
         reservations:
-          cpus: '1'
-          memory: 8G
+          cpus: '${AIRFLOW_DAG_PROCESSOR_CPU_ALLOCATION:-1}'
+          memory: '${AIRFLOW_DAG_PROCESSOR_RAM_ALLOCATION:-8G}'
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -301,11 +301,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 16G
+          cpus: '${AIRFLOW_WORKER_CPU_ALLOCATION:-2}'
+          memory: '${AIRFLOW_WORKER_RAM_ALLOCATION:-16G}'
         reservations:
-          cpus: '2'
-          memory: 16G
+          cpus: '${AIRFLOW_WORKER_CPU_ALLOCATION:-2}'
+          memory: '${AIRFLOW_WORKER_RAM_ALLOCATION:-16G}'
     depends_on:
       <<: *airflow-common-depends-on
       airflow-apiserver:
@@ -326,11 +326,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 1G
+          cpus: '${AIRFLOW_TRIGGERER_CPU_ALLOCATION:-0.5}'
+          memory: '${AIRFLOW_TRIGGERER_RAM_ALLOCATION:-1G}'
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '${AIRFLOW_TRIGGERER_CPU_ALLOCATION:-0.5}'
+          memory: '${AIRFLOW_TRIGGERER_RAM_ALLOCATION:-1G}'
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -473,11 +473,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 1G
+          cpus: '${FLOWER_CPU_ALLOCATION:-0.25}'
+          memory: '${FLOWER_RAM_ALLOCATION:-1G}'
         reservations:
-          cpus: '0.1'
-          memory: 512M
+          cpus: '${FLOWER_CPU_ALLOCATION:-0.25}'
+          memory: '${FLOWER_RAM_ALLOCATION:-1G}'
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
