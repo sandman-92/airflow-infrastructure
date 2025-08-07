@@ -63,6 +63,8 @@ with DAG(
         conf["TriggerEmbedding"] = True
         conf["OverrideTriggerEmbedding"] = Variable.get("trigger_embeddings_override", False)
 
+        conf['collection'] = Variable.get("collection", "test_urls")
+
         logger.info("web scraping dag called with conf")
         logger.info("conf:\n%s", pprint.pformat(conf, indent=2))
 
@@ -473,7 +475,7 @@ def scrape_with_requests(url):
             "/xml;q=0.9,image/webp,*/*;q=0.8"
         )
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "User-Agent": "MyResearchBot/1.0 (+mailto:asw@woodthilsted.com)",
             "Accept": accept,
             "Accept-Language": "en-US,en;q=0.5",
             "Connection": "keep-alive",

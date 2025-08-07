@@ -23,10 +23,12 @@ Junie is expected to be proficient in:
 ```
 project-root/
 ├── dags/                  # Main DAG files
-│   └── functions/         # Reusable functions for DAGs (separated from DAG definitions)
 ├── dag_tests/             # DAG unit tests
+├── config/                 # Apache airflow config folder
 ├── cloudbuild/            # Cloud Build configuration directory
+├── notebookes/            # directory for non essential jupyter notebook for interactive development 
 ├── pyproject.toml         # Poetry environment setup
+├── docker-compose.yaml         # The docker compose file for development
 └── junie/.guidelines.md         # This file
 ```
 
@@ -39,9 +41,9 @@ project-root/
 * Ensure the virtual environment is activated before working:
 * please keep all imports at the top of the file
 
-  ```bash
-  poetry env activate 
-  ```
+```bash
+poetry env activate 
+```
 
 ---
 
@@ -59,9 +61,9 @@ project-root/
 ### ✅ Structure
 
 1. **Imports:** Standard Python → Third-party → Airflow → Local (including functions modules)
-2. **Function Organization:** Reusable functions should be placed in `dags/functions/` modules, separated from DAG definitions to avoid import issues during testing.
-3. **DAG Definition:** Should be wrapped in a `with DAG(...) as dag:` block.
-4. **Context extraction** like `get_current_context()` must be placed inside `@task`-decorated functions.
+3. **DAG Definition:** Should be wrapped in a `with DAG(...) as dag:` block. Dag Definition must be placed at the top of the file.
+4. **Helper Functions:** Should be placed at the bottom of the file. 
+5. **Context extraction** like `get_current_context()` must be placed inside `@task`-decorated functions.
 
 ### ✅ Example Template
 
@@ -73,10 +75,6 @@ from airflow.decorators import task
 from airflow.operators.python import get_current_context
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from datetime import datetime, timedelta
-
-# Import functions from functions module
-from functions.example_functions import example_function
-
 
 default_args = {
     'owner': 'airflow',
@@ -127,6 +125,10 @@ with DAG(
     t4_task = task_4()
 
     t3_mapped >> t4_task >> trigger_called_dag
+
+# include any helper functions at the bottom of the file or import from other or files if necessary. 
+def example_function():
+    print("Hello, World!")
 ```
 
 ### Details to check
@@ -268,6 +270,5 @@ Before submitting a DAG:
 * [ ] `test_*.py` exists in `dag_tests/` for every DAG
 * [ ] Code passes `black`, `flake8`, and `isort`
 * [ ] All tests pass via `pytest`
-* [ ] Developed and tested within WSL environment using Poetry
 
 

@@ -26,7 +26,7 @@ with DAG(
     dag_id='gdelt_url_injestion_dag',
     default_args=default_args,
     start_date=datetime.utcnow() - timedelta(days=1),
-    schedule="0 */3 * * *",
+    # schedule="0 */3 * * *",
     # schedule=None,
     catchup=False,
     tags=['airflow-3.0', 'gdelt', 'fanout'],
@@ -85,6 +85,8 @@ with DAG(
         trigger_dag_id="web_scraping_dag",
         wait_for_completion=False,
         reset_dag_run=False,
+        # retries=1,  # Number of retries
+        retry_delay=timedelta(minutes=1),
     ).expand(
         conf=urls_for_trigger
     )
@@ -229,7 +231,7 @@ def trigger_web_scraping_for_urls(urls: List[str], context=None) -> Dict[str, An
                 trigger_op = TriggerDagRunOperator(
                     task_id=task_id,
                     trigger_dag_id='web_scraping_dag',
-                    conf={'url': url},
+                    conf={'url': url, 'collection': 'test_urls'},
                     wait_for_completion=False,
                 )
 
