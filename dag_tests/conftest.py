@@ -25,12 +25,7 @@ sys.path.append(root_dir)
 
 from models.base import Base, get_current_engine
 from models.model import (
-    TaskStatus,
-    URLInjestion,
-    JsonFiles,
-    FullArticleTextEmbedding,
-    URLKeyWordTable,
-    GdeltKeywords
+URL, Embedding
 )
 
 
@@ -152,41 +147,19 @@ def sample_data(test_db):
     
     try:
         # Create sample URL ingestion record
-        url_record = URLInjestion(
+        url_record = URL(
             url="https://example.com/test-article",
-            status="Success"
+            json_file_path="fake_file_path.json"
         )
         session.add(url_record)
         session.commit()
         session.refresh(url_record)
         
-        # Create sample JSON file record
-        json_record = JsonFiles(
-            filepath="/tmp/test_article.json",
-            status="Success",
-            url_id=url_record.id
-        )
-        session.add(json_record)
-        session.commit()
-        session.refresh(json_record)
-        
-        # Create sample embedding record
-        embedding_record = FullArticleTextEmbedding(
-            url_id=url_record.id,
-            json_file_id=json_record.id,
-            qdrant_collection="test_collection",
-            qdrant_index="test_index_123",
-            status="Success"
-        )
-        session.add(embedding_record)
-        session.commit()
-        session.refresh(embedding_record)
+
         
         # Don't close session here - let the test handle it
         return {
             'url_record': url_record,
-            'json_record': json_record,
-            'embedding_record': embedding_record,
             'session': session
         }
     
