@@ -1,0 +1,188 @@
+name: Security Report
+description: Report a security vulnerability in the Airflow Infrastructure project
+title: "[SECURITY] "
+labels: ["security", "needs-triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **IMPORTANT SECURITY NOTICE** ⚠️
+        
+        If this is a **critical security vulnerability** that could be exploited, please consider reporting it privately first by emailing the maintainers directly instead of creating a public issue.
+        
+        For non-critical security issues or security improvements, please continue with this form.
+
+  - type: dropdown
+    id: vulnerability-type
+    attributes:
+      label: Vulnerability Type
+      description: What type of security issue is this?
+      options:
+        - Authentication/Authorization
+        - Data Exposure/Leakage
+        - Injection (SQL, Command, etc.)
+        - Cross-Site Scripting (XSS)
+        - Cross-Site Request Forgery (CSRF)
+        - Insecure Configuration
+        - Dependency Vulnerability
+        - Access Control
+        - Cryptographic Issue
+        - Information Disclosure
+        - Denial of Service
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Assessment
+      description: How would you rate the severity of this security issue?
+      options:
+        - Low - Minimal impact, requires specific conditions
+        - Medium - Moderate impact, affects some users
+        - High - Significant impact, affects many users
+        - Critical - Severe impact, immediate action required
+    validations:
+      required: true
+
+  - type: textarea
+    id: vulnerability-description
+    attributes:
+      label: Vulnerability Description
+      description: Provide a clear description of the security vulnerability
+      placeholder: Describe the security issue you discovered...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected-component
+    attributes:
+      label: Affected Component
+      description: Which component of the project is affected?
+      options:
+        - DAGs
+        - Cloud Build Configuration
+        - Docker Configuration
+        - Database/Models
+        - Authentication/Authorization
+        - API Endpoints
+        - Configuration Files
+        - Dependencies
+        - CI/CD Pipeline
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Provide step-by-step instructions to reproduce the vulnerability
+      placeholder: |
+        1. Step one...
+        2. Step two...
+        3. Step three...
+        4. Observe the security issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact-assessment
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact of this vulnerability?
+      placeholder: |
+        - What data could be exposed?
+        - What systems could be compromised?
+        - What actions could an attacker perform?
+        - How many users could be affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: attack-scenario
+    attributes:
+      label: Attack Scenario
+      description: Describe a realistic attack scenario exploiting this vulnerability
+      placeholder: How could an attacker exploit this vulnerability in practice?
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment-details
+    attributes:
+      label: Environment Details
+      description: Provide details about the environment where this was discovered
+      placeholder: |
+        - OS: [e.g. Ubuntu 20.04, Windows 11 WSL2]
+        - Python version: [e.g. 3.9.7]
+        - Airflow version: [e.g. 2.7.0]
+        - Docker version: [e.g. 24.0.6]
+        - Network configuration: [e.g. local, cloud, behind proxy]
+    validations:
+      required: true
+
+  - type: textarea
+    id: proof-of-concept
+    attributes:
+      label: Proof of Concept
+      description: If applicable, provide a proof of concept (sanitized and safe)
+      placeholder: |
+        Please provide sanitized code or commands that demonstrate the vulnerability.
+        DO NOT include actual exploits or malicious payloads.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix
+      description: If you have suggestions for fixing this vulnerability, please share them
+      placeholder: How do you think this vulnerability should be addressed?
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Any relevant security advisories, CVEs, or documentation
+      placeholder: |
+        - CVE-XXXX-XXXX
+        - https://example.com/security-advisory
+        - Related security documentation
+    validations:
+      required: false
+
+  - type: dropdown
+    id: disclosure-preference
+    attributes:
+      label: Disclosure Preference
+      description: How would you prefer this security issue to be handled?
+      options:
+        - Public disclosure (this issue)
+        - Coordinated disclosure (fix first, then public)
+        - Private disclosure only
+        - No preference
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: security-checklist
+    attributes:
+      label: Security Reporting Checklist
+      description: Please confirm the following
+      options:
+        - label: I have not disclosed this vulnerability publicly elsewhere
+          required: true
+        - label: I understand this may be a sensitive security issue
+          required: true
+        - label: I have provided sufficient information for the maintainers to understand and reproduce the issue
+          required: true
+        - label: I agree to follow responsible disclosure practices
+          required: true
+        - label: I agree to follow this project's Code of Conduct
+          required: true
