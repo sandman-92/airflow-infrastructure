@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-
 import sys
 import os
+
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, TIMESTAMP
+from sqlalchemy.orm import relationship
+from datetime import datetime
+
 
 # Add current directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,16 +12,6 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from base import Base, engine
-from sqlalchemy import text
-
-
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, TIMESTAMP
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime
-
-Base = declarative_base()
-
 
 class URL(Base):
     __tablename__ = "urls"
