@@ -79,6 +79,9 @@ x-airflow-common:
     AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: ${AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG:-16}
     # Logging configuration from .env
     AIRFLOW__LOGGING__LOGGING_LEVEL: ${AIRFLOW__LOGGING__LOGGING_LEVEL:-INFO}
+    #Sentry configuration
+    AIRFLOW__SENTRY__SENTRY_ON: ${AIRFLOW__SENTRY__SENTRY_ON:-False}
+    AIRFLOW__SENTRY__SENTRY_DSN: ${AIRFLOW__SENTRY__SENTRY_DSN:-}
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server

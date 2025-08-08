@@ -14,7 +14,9 @@ read through the airflow compose quickstart [link](https://airflow.apache.org/do
 fill in the environment file
 
 ```dotenv
-AIRFLOW_UID=YOUR UID
+
+# Replace this with your userID
+AIRFLOW_UID=1000
 # Apache Airflow Configuration
 AIRFLOW_IMAGE_NAME=apache/airflow:3.0.3
 #AIRFLOW_UID=50000
@@ -24,19 +26,22 @@ AIRFLOW_PROJ_DIR=.
 _AIRFLOW_WWW_USER_USERNAME=airflow
 _AIRFLOW_WWW_USER_PASSWORD=airflow
 
-# Auth0 Configuration
-# Replace these values with your Auth0 application settings
-AUTH0_DOMAIN=https://your-domain.auth0.com
-AUTH0_CLIENT_ID=your-auth0-client-id
-AUTH0_CLIENT_SECRET=your-auth0-client-secret
+## Auth0 Configuration
+## Replace these values with your Auth0 application settings
+#AUTH0_DOMAIN=https://your-domain.auth0.com
+#AUTH0_CLIENT_ID=your-auth0-client-id
+#AUTH0_CLIENT_SECRET=your-auth0-client-secret
 
 # Additional Python Requirements (optional)
 # Add any additional Python packages you need
-_PIP_ADDITIONAL_REQUIREMENTS=authlib flask-oidc requests beautifulsoup4 alembic sqlalchemy psycopg2-binary qdrant-client numpy pandas openai
+_PIP_ADDITIONAL_REQUIREMENTS=authlib flask-oidc requests beautifulsoup4 alembic sqlalchemy psycopg2-binary qdrant-client numpy pandas openai apache-airflow[statsd] apache-airflow[sentry]
 
 AIRFLOW__CORE__LOAD_EXAMPLES=False
-AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG
+AIRFLOW__LOGGING__LOGGING_LEVEL=INFO
 
+#This allows tasks to communicate via the file system. Important for scheduling 1000+ tasks
+AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend
+AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=file:///opt/airflow/data/xcoms
 # Airflow Concurrency and Parallelism Configuration
 
 # Maximum number of task instances that can run simultaneously across the entire Airflow instance
@@ -90,6 +95,8 @@ AIRFLOW_TRIGGERER_RAM_ALLOCATION=1G
 # Flower monitoring
 FLOWER_CPU_ALLOCATION=0.25
 FLOWER_RAM_ALLOCATION=1G
+
+OPENAI_API_KEY=
 ```
 run 
 ```bash

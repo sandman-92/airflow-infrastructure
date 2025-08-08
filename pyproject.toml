@@ -9,7 +9,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
-apache-airflow = ">=3.0.3,<4.0.0"
+apache-airflow = {extras = ["sentry"], version = "^3.0.3"}
 pytest = ">=8.4.1,<9.0.0"
 pytest-mock = ">=3.14.0,<4.0.0"
 pytest-asyncio = ">=0.25.0,<1.0.0"
