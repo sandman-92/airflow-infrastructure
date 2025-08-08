@@ -10,7 +10,7 @@ logs/
 data/
 
 # Airflow configuration and runtime files
-config/airflow.cfg
+config/airflow_bk.cfg
 airflow.cfg
 airflow.db
 airflow-webserver.pid
