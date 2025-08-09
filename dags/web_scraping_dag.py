@@ -26,6 +26,9 @@ from models.base import SessionLocal
 from models.model import URL, Embedding
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from gpt_prompts.analysis_prompt import system_prompt as analysis_system_prompt
+
+
 logger = logging.getLogger(__name__)
 # Default arguments for the DAG
 default_args = {
